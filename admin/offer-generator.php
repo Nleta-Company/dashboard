@@ -834,34 +834,6 @@ if (empty($requestServices)) {
 
 
 /* =========================================================
-   ONLY ACCEPTED / OFFER GENERATED
-========================================================= */
-
-$requestStatus =
-    trim(
-        (string)(
-            $request['status']
-            ?? ''
-        )
-    );
-
-
-if (
-    !in_array(
-        $requestStatus,
-        [
-            'Accepted',
-            'Offer Generated'
-        ],
-        true
-    )
-) {
-
-    die('Offer Generator is available only for an Accepted Service Request.');
-}
-
-
-/* =========================================================
    LOAD SELECTED ASSETS
 ========================================================= */
 
@@ -1495,6 +1467,31 @@ if (
 
 
     $existingStmt->close();
+}
+
+
+/* =========================================================
+   SERVICE REQUEST STATUS VALIDATION
+   ---------------------------------------------------------
+   - New offer generation is allowed only for Accepted or
+     Offer Generated requests.
+   - If an FSO already exists for this request, allow the
+     Admin to open/view it even when the request is Completed
+     or has moved to a later workflow status.
+   - Existing offer must be loaded before this check.
+========================================================= */
+
+$requestStatus = trim((string)($request['status'] ?? ''));
+$hasExistingOffer = is_array($existingOffer) && !empty($existingOffer['id']);
+
+if (
+    !in_array($requestStatus, ['Accepted', 'Offer Generated'], true)
+    && !$hasExistingOffer
+) {
+    die(
+        'Offer Generator is available only for an Accepted Service Request. ' .
+        'No existing FSO was found for this request.'
+    );
 }
 
 

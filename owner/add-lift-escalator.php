@@ -1,7 +1,7 @@
 <?php
 /* =========================================================
    NLETA
-   OWNER — ADD LIFT / ESCALATOR
+   OWNER — ADD / EDIT LIFT / ESCALATOR
    PHASE 4 — ASSET REGISTER
 
    COMPLETE FIXED VERSION
@@ -121,9 +121,7 @@ if ($ownerName === '') {
 ========================================================= */
 
 if (
-    empty(
-        $_SESSION['csrf_owner_add_asset']
-    )
+    empty($_SESSION['csrf_owner_add_asset'])
 ) {
 
     $_SESSION['csrf_owner_add_asset'] =
@@ -201,7 +199,8 @@ $passengerBasedLiftTypes = [
 
     'Passenger Lift',
     'Passenger Cum Goods Lift',
-    'Hospital Lift'
+    'Hospital Lift',
+    'Service Lift'
 ];
 
 
@@ -291,6 +290,59 @@ if ($existingAssetStmt) {
     $existingAssetStmt->close();
 }
 
+
+/* =========================================================
+   EDIT MODE — LOAD OWNER-OWNED ASSET AND DETAILS
+========================================================= */
+$editAssetId = (int)($_GET['edit_asset'] ?? $_POST['edit_asset_id'] ?? 0);
+$isEditMode = $editAssetId > 0;
+$editDisplayAssetId = '';
+
+if ($isEditMode && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    $editStmt = $conn->prepare("
+        SELECT a.*, d.*
+        FROM assets a
+        LEFT JOIN asset_details d ON d.asset_id = a.id
+        WHERE a.id = ? AND a.owner_id = ?
+        LIMIT 1
+    ");
+    if (!$editStmt) {
+        die('Unable to load asset for editing.');
+    }
+    $editStmt->bind_param('ii', $editAssetId, $owner_id);
+    $editStmt->execute();
+    $editRow = $editStmt->get_result()->fetch_assoc();
+    $editStmt->close();
+
+    if (!$editRow) {
+        http_response_code(404);
+        die('Asset not found or you do not have permission to edit it.');
+    }
+
+    $editDisplayAssetId = (string)($editRow['display_asset_id'] ?? '');
+    $prefill = [
+        'asset_name' => $editRow['asset_name'] ?? '',
+        'location' => $editRow['location'] ?? '',
+        'state' => $editRow['state'] ?? '',
+        'asset_type' => $editRow['asset_type'] ?? 'Lift',
+        'lift_type' => $editRow['lift_type'] ?? '',
+        'passenger_capacity' => $editRow['passenger_capacity'] ?? '',
+        'load_capacity' => $editRow['load_capacity'] ?? '',
+        'machine_type' => $editRow['machine_type'] ?? '',
+        'escalator_type' => $editRow['escalator_type'] ?? '',
+        'escalator_rise' => $editRow['escalator_rise'] ?? '',
+        'number_of_floors' => $editRow['number_of_floors'] ?? '',
+        'floor_service_type' => $editRow['floor_service_type'] ?? '',
+        'served_floors' => $editRow['served_floors'] ?? '',
+        'floor_interval' => $editRow['floor_interval'] ?? '',
+        'installation_year' => !empty($editRow['installation_date']) ? date('Y', strtotime($editRow['installation_date'])) : '',
+        'modification_year' => $editRow['modification_year'] ?? '',
+        'consignee_name' => $editRow['consignee_name'] ?? $ownerName,
+    ];
+    foreach ($prefill as $key => $value) {
+        $_POST[$key] = (string)$value;
+    }
+}
 
 /* =========================================================
    AJAX — LOAD EXISTING ASSET
@@ -457,10 +509,8 @@ if (
     $installationYear = '';
 
     if (
-        !empty(
-            $details['installation_date']
-            ?? ''
-        )
+        !empty($details['installation_date']
+            ?? '')
     ) {
 
         $timestamp =
@@ -491,91 +541,91 @@ if (
              * the new Asset Name field.
              */
             'asset_name' =>
-                (string)(
-                    $asset['asset_name']
-                    ?? ''
-                ),
+            (string)(
+                $asset['asset_name']
+                ?? ''
+            ),
 
             'location' =>
-                (string)(
-                    $asset['location']
-                    ?? ''
-                ),
+            (string)(
+                $asset['location']
+                ?? ''
+            ),
 
             'state' =>
-                (string)(
-                    $asset['state']
-                    ?? ''
-                ),
+            (string)(
+                $asset['state']
+                ?? ''
+            ),
 
             'asset_type' =>
-                (string)(
-                    $asset['asset_type']
-                    ?? ''
-                ),
+            (string)(
+                $asset['asset_type']
+                ?? ''
+            ),
 
             'lift_type' =>
-                (string)(
-                    $details['lift_type']
-                    ?? ''
-                ),
+            (string)(
+                $details['lift_type']
+                ?? ''
+            ),
 
             'passenger_capacity' =>
-                $details['passenger_capacity']
+            $details['passenger_capacity']
                 ?? '',
 
             'load_capacity' =>
-                $details['load_capacity']
+            $details['load_capacity']
                 ?? '',
 
             'machine_type' =>
-                (string)(
-                    $details['machine_type']
-                    ?? ''
-                ),
+            (string)(
+                $details['machine_type']
+                ?? ''
+            ),
 
             'number_of_floors' =>
-                $details['number_of_floors']
+            $details['number_of_floors']
                 ?? '',
 
             'floor_service_type' =>
-                (string)(
-                    $details['floor_service_type']
-                    ?? ''
-                ),
+            (string)(
+                $details['floor_service_type']
+                ?? ''
+            ),
 
             'served_floors' =>
-                (string)(
-                    $details['served_floors']
-                    ?? ''
-                ),
+            (string)(
+                $details['served_floors']
+                ?? ''
+            ),
 
             'floor_interval' =>
-                $details['floor_interval']
+            $details['floor_interval']
                 ?? '',
 
             'escalator_type' =>
-                (string)(
-                    $details['escalator_type']
-                    ?? ''
-                ),
+            (string)(
+                $details['escalator_type']
+                ?? ''
+            ),
 
             'escalator_rise' =>
-                $details['escalator_rise']
+            $details['escalator_rise']
                 ?? '',
 
             'installation_year' =>
-                $installationYear,
+            $installationYear,
 
             'modification_year' =>
-                $details['modification_year']
+            $details['modification_year']
                 ?? '',
 
             'consignee_name' =>
-                (string)(
-                    $details['consignee_name']
-                    ?? ''
-                )
+            (string)(
+                $details['consignee_name']
+                ?? ''
+            )
         ]
     ]);
 
@@ -950,7 +1000,6 @@ if (
             $error =
                 'Invalid request. Please try again.';
         }
-
     } else {
 
         if (
@@ -1112,7 +1161,7 @@ if (
             $error === ''
             &&
             $floorServiceType ===
-                'Every Nth Floor'
+            'Every Nth Floor'
             &&
             (
                 $floorInterval === ''
@@ -1140,7 +1189,7 @@ if (
             $error === ''
             &&
             $floorServiceType ===
-                'Specific Floors'
+            'Specific Floors'
             &&
             $servedFloors === ''
         ) {
@@ -1318,10 +1367,10 @@ if (
             )
             ||
             (int)$installationYear <
-                $minInstallationYear
+            $minInstallationYear
             ||
             (int)$installationYear >
-                $currentYear
+            $currentYear
         )
     ) {
 
@@ -1345,10 +1394,10 @@ if (
             )
             ||
             (int)$modificationYear <
-                (int)$installationYear
+            (int)$installationYear
             ||
             (int)$modificationYear >
-                $currentYear
+            $currentYear
         )
     ) {
 
@@ -1395,9 +1444,7 @@ if (
 
 
         if (
-            empty(
-                $generatedServedFloors
-            )
+            empty($generatedServedFloors)
         ) {
 
             $error =
@@ -1525,152 +1572,84 @@ if (
 
 
             /* =============================================
-               INSERT ASSET
+               UPDATE EXISTING ASSET OR CREATE NEW ASSET
             ============================================== */
-
-            $stmt =
-                $conn->prepare("
-                    INSERT INTO assets
-                    (
-                        asset_name,
-                        location,
-                        state,
-                        asset_type,
-                        category,
-                        owner_id,
-                        status,
-                        updated_at
-                    )
-                    VALUES
-                    (
-                        ?,
-                        ?,
-                        ?,
-                        ?,
-                        ?,
-                        ?,
-                        'Active',
-                        NOW()
-                    )
+            if ($isEditMode) {
+                $stmt = $conn->prepare("
+                    UPDATE assets
+                    SET asset_name = ?, location = ?, state = ?,
+                        asset_type = ?, category = ?, updated_at = NOW()
+                    WHERE id = ? AND owner_id = ?
+                    LIMIT 1
                 ");
-
-
-            if (!$stmt) {
-
-                throw new Exception(
-                    'Unable to prepare asset creation: '
-                    . $conn->error
+                if (!$stmt) {
+                    throw new Exception('Unable to prepare asset update: ' . $conn->error);
+                }
+                $stmt->bind_param(
+                    'sssssii',
+                    $assetName,
+                    $location,
+                    $state,
+                    $assetType,
+                    $category,
+                    $editAssetId,
+                    $owner_id
                 );
-            }
-
-
-            $stmt->bind_param(
-                'sssssi',
-                $assetName,
-                $location,
-                $state,
-                $assetType,
-                $category,
-                $owner_id
-            );
-
-
-            if (
-                !$stmt->execute()
-            ) {
-
-                $message =
-                    $stmt->error;
-
+                if (!$stmt->execute()) {
+                    $message = $stmt->error;
+                    $stmt->close();
+                    throw new Exception('Unable to update asset: ' . $message);
+                }
+                if ($stmt->affected_rows < 0) {
+                    $stmt->close();
+                    throw new Exception('Asset update failed.');
+                }
                 $stmt->close();
 
-
-                throw new Exception(
-                    'Unable to create asset: '
-                    . $message
-                );
-            }
-
-
-            $assetId =
-                (int)$conn->insert_id;
-
-
-            $stmt->close();
-
-
-            if (
-                $assetId <= 0
-            ) {
-
-                throw new Exception(
-                    'Invalid Asset ID generated.'
-                );
-            }
-
-
-            /* =============================================
-               DISPLAY ASSET ID
-            ============================================== */
-
-            $displayAssetId =
-                $ownerCode
-                . '-'
-                . $stateCode
-                . '-'
-                . str_pad(
-                    (string)$assetId,
-                    3,
-                    '0',
-                    STR_PAD_LEFT
-                );
-
-
-            $update =
-                $conn->prepare("
-                    UPDATE assets
-                    SET display_asset_id = ?
-                    WHERE id = ?
-                      AND owner_id = ?
+                $assetId = $editAssetId;
+                $idStmt = $conn->prepare("SELECT display_asset_id FROM assets WHERE id = ? AND owner_id = ? LIMIT 1");
+                $idStmt->bind_param('ii', $assetId, $owner_id);
+                $idStmt->execute();
+                $idRow = $idStmt->get_result()->fetch_assoc();
+                $idStmt->close();
+                $displayAssetId = (string)($idRow['display_asset_id'] ?? '');
+                if ($displayAssetId === '') {
+                    throw new Exception('Existing Asset ID could not be verified.');
+                }
+            } else {
+                $stmt = $conn->prepare("
+                    INSERT INTO assets
+                    (asset_name, location, state, asset_type, category, owner_id, status, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, 'Active', NOW())
                 ");
+                if (!$stmt) {
+                    throw new Exception('Unable to prepare asset creation: ' . $conn->error);
+                }
+                $stmt->bind_param('sssssi', $assetName, $location, $state, $assetType, $category, $owner_id);
+                if (!$stmt->execute()) {
+                    $message = $stmt->error;
+                    $stmt->close();
+                    throw new Exception('Unable to create asset: ' . $message);
+                }
+                $assetId = (int)$conn->insert_id;
+                $stmt->close();
+                if ($assetId <= 0) {
+                    throw new Exception('Invalid Asset ID generated.');
+                }
 
-
-            if (!$update) {
-
-                throw new Exception(
-                    'Unable to prepare Asset ID update: '
-                    . $conn->error
-                );
-            }
-
-
-            $update->bind_param(
-                'sii',
-                $displayAssetId,
-                $assetId,
-                $owner_id
-            );
-
-
-            if (
-                !$update->execute()
-            ) {
-
-                $message =
-                    $update->error;
-
+                $displayAssetId = $ownerCode . '-' . $stateCode . '-' . str_pad((string)$assetId, 3, '0', STR_PAD_LEFT);
+                $update = $conn->prepare("UPDATE assets SET display_asset_id = ? WHERE id = ? AND owner_id = ?");
+                if (!$update) {
+                    throw new Exception('Unable to prepare Asset ID update: ' . $conn->error);
+                }
+                $update->bind_param('sii', $displayAssetId, $assetId, $owner_id);
+                if (!$update->execute()) {
+                    $message = $update->error;
+                    $update->close();
+                    throw new Exception('Unable to save Asset ID: ' . $message);
+                }
                 $update->close();
-
-
-                throw new Exception(
-                    'Unable to save Asset ID: '
-                    . $message
-                );
             }
-
-
-            $update->close();
-
 
             /* =============================================
                CHECK ASSET DETAILS COLUMNS
@@ -1686,7 +1665,7 @@ if (
 
                 throw new Exception(
                     'Unable to inspect asset_details: '
-                    . $conn->error
+                        . $conn->error
                 );
             }
 
@@ -1819,7 +1798,7 @@ if (
                         $assetType === 'Lift'
                         &&
                         $floorServiceType ===
-                            'Every Nth Floor'
+                        'Every Nth Floor'
                     )
                     ? (int)$floorInterval
                     : null;
@@ -2015,32 +1994,39 @@ if (
                 );
 
 
-            $sql =
-                "INSERT INTO asset_details ("
-                .
-                implode(
-                    ', ',
-                    array_map(
-                        function ($column) {
+            $existingDetailsCheck = $conn->prepare(
+                "SELECT asset_id FROM asset_details WHERE asset_id = ? LIMIT 1"
+            );
+            if (!$existingDetailsCheck) {
+                throw new Exception('Unable to check existing asset details: ' . $conn->error);
+            }
+            $existingDetailsCheck->bind_param('i', $assetId);
+            $existingDetailsCheck->execute();
+            $hasExistingDetails = (bool)$existingDetailsCheck->get_result()->fetch_assoc();
+            $existingDetailsCheck->close();
 
-                            return '`'
-                                . $column
-                                . '`';
-
-                        },
-                        $detailColumns
-                    )
-                )
-                .
-                ")
-                VALUES ("
-                .
-                implode(
-                    ', ',
-                    $placeholders
-                )
-                .
-                ")";
+            if ($hasExistingDetails) {
+                $updateColumns = array_values(array_filter(
+                    $detailColumns,
+                    function ($column) {
+                        return $column !== 'asset_id';
+                    }
+                ));
+                $sql = "UPDATE asset_details SET " .
+                    implode(', ', array_map(function ($column) {
+                        return '`' . $column . '` = ?';
+                    }, $updateColumns)) .
+                    " WHERE asset_id = ?";
+                $detailColumns = $updateColumns;
+                $detailValues['__where_asset_id'] = $assetId;
+                $detailColumns[] = '__where_asset_id';
+            } else {
+                $sql = "INSERT INTO asset_details (" .
+                    implode(', ', array_map(function ($column) {
+                        return '`' . $column . '`';
+                    }, $detailColumns)) .
+                    ") VALUES (" . implode(', ', array_fill(0, count($detailColumns), '?')) . ")";
+            }
 
 
             $detailsStmt =
@@ -2051,7 +2037,7 @@ if (
 
                 throw new Exception(
                     'Unable to prepare Asset Details: '
-                    . $conn->error
+                        . $conn->error
                 );
             }
 
@@ -2065,11 +2051,15 @@ if (
             ) {
 
                 $value =
-                    $detailValues[$column];
+                    $column === '__where_asset_id'
+                    ? $assetId
+                    : $detailValues[$column];
 
 
                 if (
                     $column === 'asset_id'
+                    ||
+                    $column === '__where_asset_id'
                     ||
                     $column === 'number_of_floors'
                     ||
@@ -2087,8 +2077,6 @@ if (
                         $value === null
                         ? 0
                         : (int)$value;
-
-
                 } elseif (
                     $column === 'load_capacity'
                     ||
@@ -2102,8 +2090,6 @@ if (
                         $value === null
                         ? 0
                         : (float)$value;
-
-
                 } else {
 
                     $types .= 's';
@@ -2153,7 +2139,7 @@ if (
 
                 throw new Exception(
                     'Unable to save Asset Details: '
-                    . $message
+                        . $message
                 );
             }
 
@@ -2168,21 +2154,17 @@ if (
             $conn->commit();
 
 
-            $_SESSION[
-                'phase4_new_asset_id'
-            ] =
+            $_SESSION['phase4_new_asset_id'] =
                 $assetId;
 
 
-            $_SESSION[
-                'phase4_new_asset_display_id'
-            ] =
+            $_SESSION['phase4_new_asset_display_id'] =
                 $displayAssetId;
 
 
             $_SESSION['success'] =
                 $assetType
-                . ' added successfully. Asset ID: '
+                . ($isEditMode ? ' updated successfully. Asset ID: ' : ' added successfully. Asset ID: ')
                 . $displayAssetId;
 
 
@@ -2191,8 +2173,6 @@ if (
             );
 
             exit;
-
-
         } catch (
             Throwable $e
         ) {
@@ -2216,1649 +2196,1612 @@ include('../includes/sidebar-owner.php');
 ?>
 
 <style>
-
-/* =========================================================
+    /* =========================================================
    PAGE
 ========================================================= */
 
-.owner-add-asset {
-
-    max-width: 1100px;
-
-    margin: 0 auto;
-
-    padding:
-        24px
-        0
-        40px;
-
-}
-
-
-/* =========================================================
-   CARDS
-========================================================= */
-
-.asset-header,
-.asset-card {
-
-    background: #fff;
-
-    border:
-        1px solid
-        #e1e5ea;
-
-    border-radius:
-        16px;
-
-    box-shadow:
-        0 4px 18px
-        rgba(
-            0,
-            0,
-            0,
-            .06
-        );
-
-}
-
-
-.asset-header {
-
-    padding:
-        24px;
-
-    margin-bottom:
-        18px;
-
-}
-
-
-.asset-header h3 {
-
-    font-weight:
-        700;
-
-}
-
-
-.asset-card {
-
-    padding:
-        26px;
-
-}
-
-
-/* =========================================================
-   SECTION
-========================================================= */
-
-.section-title {
-
-    margin-top:
-        26px;
-
-    margin-bottom:
-        14px;
-
-    padding-bottom:
-        9px;
-
-    border-bottom:
-        1px solid
-        #dee2e6;
-
-    font-size:
-        17px;
-
-    font-weight:
-        700;
-
-}
-
-
-.required {
-
-    color:
-        #dc3545;
-
-}
-
-
-/* =========================================================
-   ASSET TYPE
-========================================================= */
-
-.asset-type-card {
-
-    display:
-        block;
-
-    border:
-        1px solid
-        #d9dee5;
-
-    border-radius:
-        14px;
-
-    padding:
-        22px;
-
-    cursor:
-        pointer;
-
-    transition:
-        .2s;
-
-    height:
-        100%;
-
-}
-
-
-.asset-type-card:hover {
-
-    border-color:
-        #0d6efd;
-
-    background:
-        #f8fbff;
-
-}
-
-
-.asset-type-card.selected {
-
-    border-color:
-        #0d6efd;
-
-    background:
-        #eef5ff;
-
-    box-shadow:
-        0 0 0 2px
-        rgba(
-            13,
-            110,
-            253,
-            .08
-        );
-
-}
-
-
-.asset-type-card input {
-
-    display:
-        none;
-
-}
-
-
-.asset-type-icon {
-
-    font-size:
-        36px;
-
-    margin-bottom:
-        8px;
-
-}
-
-
-/* =========================================================
-   TECHNICAL SECTIONS
-========================================================= */
-
-.asset-specific-section {
-
-    background:
-        #f8fbff;
-
-    border:
-        1px solid
-        #e1ebf5;
-
-    border-radius:
-        13px;
-
-    padding:
-        20px;
-
-}
-
-
-/* =========================================================
-   LOAD
-========================================================= */
-
-.auto-load-box {
-
-    background:
-        #eaf4ff;
-
-    border:
-        1px solid
-        #b9dcff;
-
-    border-radius:
-        10px;
-
-    padding:
-        10px
-        13px;
-
-    margin-top:
-        7px;
-
-    color:
-        #174a7c;
-
-}
-
-
-/* =========================================================
-   COPY
-========================================================= */
-
-.copy-asset-box {
-
-    background:
-        #f7f9fc;
-
-    border:
-        1px solid
-        #dce3ec;
-
-    border-radius:
-        13px;
-
-    padding:
-        20px;
-
-    margin-bottom:
-        24px;
-
-}
-
-
-.copy-icon {
-
-    width:
-        44px;
-
-    height:
-        44px;
-
-    border-radius:
-        10px;
-
-    background:
-        #eaf2ff;
-
-    color:
-        #0d6efd;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        center;
-
-    font-size:
-        21px;
-
-    flex-shrink:
-        0;
-
-}
-
-
-.copy-status {
-
-    display:
-        none;
-
-    border-radius:
-        9px;
-
-    padding:
-        10px
-        13px;
-
-    margin-top:
-        12px;
-
-    font-size:
-        13px;
-
-}
-
-
-.copy-status.success {
-
-    display:
-        block;
-
-    background:
-        #eaf8ef;
-
-    border:
-        1px solid
-        #bce3ca;
-
-    color:
-        #176b37;
-
-}
-
-
-.copy-status.error {
-
-    display:
-        block;
-
-    background:
-        #fff0f0;
-
-    border:
-        1px solid
-        #f1bcbc;
-
-    color:
-        #9c1c1c;
-
-}
-
-
-.copy-status.loading {
-
-    display:
-        block;
-
-    background:
-        #eef5ff;
-
-    border:
-        1px solid
-        #c9dcff;
-
-    color:
-        #174a7c;
-
-}
-
-
-/* =========================================================
-   HELP
-========================================================= */
-
-.form-help {
-
-    color:
-        #6c757d;
-
-    font-size:
-        12px;
-
-}
-
-
-/* =========================================================
-   BUTTON
-========================================================= */
-
-#saveBtn {
-
-    cursor:
-        pointer;
-
-}
-
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media(max-width: 768px) {
-
     .owner-add-asset {
 
+        max-width: 1100px;
+
+        margin: 0 auto;
+
         padding:
-            10px;
+            24px 0 40px;
 
     }
 
 
+    /* =========================================================
+   CARDS
+========================================================= */
+
     .asset-header,
     .asset-card {
 
-        padding:
-            18px;
+        background: #fff;
+
+        border:
+            1px solid #e1e5ea;
 
         border-radius:
+            16px;
+
+        box-shadow:
+            0 4px 18px rgba(0,
+                0,
+                0,
+                .06);
+
+    }
+
+
+    .asset-header {
+
+        padding:
+            24px;
+
+        margin-bottom:
+            18px;
+
+    }
+
+
+    .asset-header h3 {
+
+        font-weight:
+            700;
+
+    }
+
+
+    .asset-card {
+
+        padding:
+            26px;
+
+    }
+
+
+    /* =========================================================
+   SECTION
+========================================================= */
+
+    .section-title {
+
+        margin-top:
+            26px;
+
+        margin-bottom:
+            14px;
+
+        padding-bottom:
+            9px;
+
+        border-bottom:
+            1px solid #dee2e6;
+
+        font-size:
+            17px;
+
+        font-weight:
+            700;
+
+    }
+
+
+    .required {
+
+        color:
+            #dc3545;
+
+    }
+
+
+    /* =========================================================
+   ASSET TYPE
+========================================================= */
+
+    .asset-type-card {
+
+        display:
+            block;
+
+        border:
+            1px solid #d9dee5;
+
+        border-radius:
+            14px;
+
+        padding:
+            22px;
+
+        cursor:
+            pointer;
+
+        transition:
+            .2s;
+
+        height:
+            100%;
+
+    }
+
+    /* Selection checkbox indicator */
+    .asset-type-card {
+        position: relative;
+    }
+
+    .asset-type-check {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid #9aa7b5;
+        border-radius: 5px;
+        background: #fff;
+        color: #fff;
+        font-size: 16px;
+        opacity: 1;
+        transition: .2s ease;
+    }
+
+    .asset-type-card.selected .asset-type-check {
+        background: #0d6efd;
+        border-color: #0d6efd;
+        color: #fff;
+    }
+
+    .asset-type-check i {
+        display: none;
+        line-height: 1;
+    }
+
+    .asset-type-card.selected .asset-type-check i {
+        display: inline-block;
+    }
+
+
+    .asset-type-card:hover {
+
+        border-color:
+            #0d6efd;
+
+        background:
+            #f8fbff;
+
+    }
+
+
+    .asset-type-card.selected {
+
+        border-color:
+            #8a92fb;
+
+        background:
+            #6de2fa;
+
+        box-shadow:
+            0 0 0 2px rgba(13,
+                110,
+                253,
+                .08);
+
+    }
+
+
+    .asset-type-card input {
+
+        display:
+            none;
+
+    }
+
+
+    .asset-type-icon {
+
+        font-size:
+            36px;
+
+        margin-bottom:
+            8px;
+
+    }
+
+
+    /* =========================================================
+   TECHNICAL SECTIONS
+========================================================= */
+
+    .asset-specific-section {
+
+        background:
+            #f8fbff;
+
+        border:
+            1px solid #e1ebf5;
+
+        border-radius:
+            13px;
+
+        padding:
+            20px;
+
+    }
+
+
+    /* =========================================================
+   LOAD
+========================================================= */
+
+    .auto-load-box {
+
+        background:
+            #eaf4ff;
+
+        border:
+            1px solid #b9dcff;
+
+        border-radius:
+            10px;
+
+        padding:
+            10px 13px;
+
+        margin-top:
+            7px;
+
+        color:
+            #174a7c;
+
+    }
+
+
+    /* =========================================================
+   COPY
+========================================================= */
+
+    .copy-asset-box {
+
+        background:
+            #f7f9fc;
+
+        border:
+            1px solid #dce3ec;
+
+        border-radius:
+            13px;
+
+        padding:
+            20px;
+
+        margin-bottom:
+            24px;
+
+    }
+
+
+    .copy-icon {
+
+        width:
+            44px;
+
+        height:
+            44px;
+
+        border-radius:
+            10px;
+
+        background:
+            #eaf2ff;
+
+        color:
+            #0d6efd;
+
+        display:
+            flex;
+
+        align-items:
+            center;
+
+        justify-content:
+            center;
+
+        font-size:
+            21px;
+
+        flex-shrink:
+            0;
+
+    }
+
+
+    .copy-status {
+
+        display:
+            none;
+
+        border-radius:
+            9px;
+
+        padding:
+            10px 13px;
+
+        margin-top:
+            12px;
+
+        font-size:
+            13px;
+
+    }
+
+
+    .copy-status.success {
+
+        display:
+            block;
+
+        background:
+            #eaf8ef;
+
+        border:
+            1px solid #bce3ca;
+
+        color:
+            #176b37;
+
+    }
+
+
+    .copy-status.error {
+
+        display:
+            block;
+
+        background:
+            #fff0f0;
+
+        border:
+            1px solid #f1bcbc;
+
+        color:
+            #9c1c1c;
+
+    }
+
+
+    .copy-status.loading {
+
+        display:
+            block;
+
+        background:
+            #eef5ff;
+
+        border:
+            1px solid #c9dcff;
+
+        color:
+            #174a7c;
+
+    }
+
+
+    /* =========================================================
+   HELP
+========================================================= */
+
+    .form-help {
+
+        color:
+            #6c757d;
+
+        font-size:
             12px;
 
     }
 
 
-    .copy-asset-box {
+    /* =========================================================
+   BUTTON
+========================================================= */
 
-        padding:
-            16px;
+    #saveBtn {
+
+        cursor:
+            pointer;
 
     }
 
-}
 
+    /* =========================================================
+   MOBILE
+========================================================= */
+
+    @media(max-width: 768px) {
+
+        .owner-add-asset {
+
+            padding:
+                10px;
+
+        }
+
+
+        .asset-header,
+        .asset-card {
+
+            padding:
+                18px;
+
+            border-radius:
+                12px;
+
+        }
+
+
+        .copy-asset-box {
+
+            padding:
+                16px;
+
+        }
+
+    }
 </style>
 
 
 <div class="content">
 
-<div class="owner-add-asset">
+    <div class="owner-add-asset">
 
 
-<!-- =====================================================
+        <!-- =====================================================
      HEADER
 ====================================================== -->
 
-<div class="asset-header">
+        <div class="asset-header">
 
-    <div
-        class="
+            <div
+                class="
             d-flex
             justify-content-between
             align-items-start
             gap-3
             flex-wrap
-        "
-    >
+        ">
 
-        <div>
+                <div>
 
-            <h3 class="mb-1">
+                    <h3 class="mb-1">
 
-                <i
-                    class="
+                        <i
+                            class="
                         bi
                         bi-plus-circle
                         me-2
-                    "
-                ></i>
+                    "></i>
 
-                Add Lift / Escalator
+                        <?= $isEditMode ? "Edit Asset" : "Add Lift / Escalator" ?>
 
-            </h3>
+                    </h3>
 
 
-            <p class="text-muted mb-0">
+                    <p class="text-muted mb-0">
 
-                Register your Lift or Escalator with NLETA.
+                        Register your Lift or Escalator with NLETA.
 
-            </p>
+                    </p>
+
+                </div>
+
+
+                <a
+                    href="service-lifts.php"
+                    class="btn btn-outline-secondary">
+
+                    <i class="bi bi-arrow-left me-1"></i>
+
+                    Back
+
+                </a>
+
+            </div>
 
         </div>
 
 
-        <a
-            href="service-lifts.php"
-            class="btn btn-outline-secondary"
-        >
-
-            <i class="bi bi-arrow-left me-1"></i>
-
-            Back
-
-        </a>
-
-    </div>
-
-</div>
-
-
-<!-- =====================================================
+        <!-- =====================================================
      ERROR
 ====================================================== -->
 
-<?php if ($error !== ''): ?>
+        <?php if ($error !== ''): ?>
 
-<div
-    class="
+            <div
+                class="
         alert
         alert-danger
         alert-dismissible
         fade
         show
-    "
->
-
-    <i
-        class="
-            bi
-            bi-exclamation-triangle-fill
-            me-2
-        "
-    ></i>
-
-    <?= h($error) ?>
-
-
-    <button
-        type="button"
-        class="btn-close"
-        data-bs-dismiss="alert"
-    ></button>
-
-</div>
-
-<?php endif; ?>
-
-
-<!-- =====================================================
-     FORM CARD
-====================================================== -->
-
-<div class="asset-card">
-
-
-<form
-    method="POST"
-    id="addAssetForm"
-    autocomplete="off"
->
-
-
-<?php
-
-if (
-    function_exists('csrfField')
-) {
-
-    echo csrfField();
-
-} else {
-
-?>
-
-<input
-    type="hidden"
-    name="csrf_token"
-    value="<?= h($csrfToken) ?>"
->
-
-<?php
-
-}
-
-?>
-
-
-<!-- =====================================================
-     EXISTING ASSET
-====================================================== -->
-
-<div class="copy-asset-box">
-
-    <div class="d-flex align-items-start gap-3">
-
-        <div class="copy-icon">
-
-            <i class="bi bi-copy"></i>
-
-        </div>
-
-
-        <div>
-
-            <div class="fw-bold fs-5">
-
-                Use Existing Asset Details
-
-            </div>
-
-
-            <div class="form-help mt-1">
-
-                Select one of your existing assets to
-                automatically fill its details into this
-                new asset.
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <div class="row g-3 mt-1">
-
-
-        <div class="col-md-9">
-
-            <label
-                class="form-label fw-semibold"
-                for="existingAssetSelect"
-            >
-
-                Select Existing Asset
-
-            </label>
-
-
-            <select
-                id="existingAssetSelect"
-                class="form-select"
-            >
-
-                <option value="">
-
-                    -- Select Existing Asset --
-
-                </option>
-
-
-                <?php foreach (
-                    $existingAssets as $existingAsset
-                ): ?>
-
-                <option
-                    value="<?= (int)$existingAsset['id'] ?>"
-                >
-
-                    <?= h(
-                        $existingAsset['display_asset_id']
-                        ?: (
-                            'Asset #'
-                            .
-                            $existingAsset['id']
-                        )
-                    ) ?>
-
-                    -
-                    <?= h(
-                        $existingAsset['asset_name']
-                    ) ?>
-
-                    -
-                    <?= h(
-                        $existingAsset['asset_type']
-                    ) ?>
-
-                    -
-                    <?= h(
-                        $existingAsset['location']
-                    ) ?>
-
-                </option>
-
-                <?php endforeach; ?>
-
-            </select>
-
-
-            <div class="form-help mt-1">
-
-                Only assets belonging to your account
-                are available.
-
-            </div>
-
-        </div>
-
-
-        <div class="col-md-3 d-flex align-items-end">
-
-            <button
-                type="button"
-                id="loadExistingAssetBtn"
-                class="btn btn-outline-primary w-100"
-            >
+    ">
 
                 <i
                     class="
+            bi
+            bi-exclamation-triangle-fill
+            me-2
+        "></i>
+
+                <?= h($error) ?>
+
+
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="alert"></button>
+
+            </div>
+
+        <?php endif; ?>
+
+
+        <!-- =====================================================
+     FORM CARD
+====================================================== -->
+
+        <div class="asset-card">
+
+
+            <form
+                method="POST"
+                id="addAssetForm"
+                autocomplete="off">
+
+                <?php if ($isEditMode): ?>
+                    <input type="hidden" name="edit_asset_id" value="<?= (int)$editAssetId ?>">
+                <?php endif; ?>
+
+
+                <?php
+
+                if (
+                    function_exists('csrfField')
+                ) {
+
+                    echo csrfField();
+                } else {
+
+                ?>
+
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="<?= h($csrfToken) ?>">
+
+                <?php
+
+                }
+
+                ?>
+
+
+                <!-- =====================================================
+     EXISTING ASSET
+====================================================== -->
+
+                <div class="copy-asset-box">
+
+                    <div class="d-flex align-items-start gap-3">
+
+                        <div class="copy-icon">
+
+                            <i class="bi bi-copy"></i>
+
+                        </div>
+
+
+                        <div>
+
+                            <div class="fw-bold fs-5">
+
+                                Use Existing Asset Details
+
+                            </div>
+
+
+                            <div class="form-help mt-1">
+
+                                Select one of your existing assets to
+                                automatically fill its details into this
+                                new asset.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="row g-3 mt-1">
+
+
+                        <div class="col-md-9">
+
+                            <label
+                                class="form-label fw-semibold"
+                                for="existingAssetSelect">
+
+                                Select Existing Asset
+
+                            </label>
+
+
+                            <select
+                                id="existingAssetSelect"
+                                class="form-select">
+
+                                <option value="">
+
+                                    -- Select Existing Asset --
+
+                                </option>
+
+
+                                <?php foreach (
+                                    $existingAssets as $existingAsset
+                                ): ?>
+
+                                    <option
+                                        value="<?= (int)$existingAsset['id'] ?>">
+
+                                        <?= h(
+                                            $existingAsset['display_asset_id']
+                                                ?: (
+                                                    'Asset #'
+                                                    .
+                                                    $existingAsset['id']
+                                                )
+                                        ) ?>
+
+                                        -
+                                        <?= h(
+                                            $existingAsset['asset_name']
+                                        ) ?>
+
+                                        -
+                                        <?= h(
+                                            $existingAsset['asset_type']
+                                        ) ?>
+
+                                        -
+                                        <?= h(
+                                            $existingAsset['location']
+                                        ) ?>
+
+                                    </option>
+
+                                <?php endforeach; ?>
+
+                            </select>
+
+
+                            <div class="form-help mt-1">
+
+                                Only assets belonging to your account
+                                are available.
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="col-md-3 d-flex align-items-end">
+
+                            <button
+                                type="button"
+                                id="loadExistingAssetBtn"
+                                class="btn btn-outline-primary w-100">
+
+                                <i
+                                    class="
                         bi
                         bi-arrow-down-circle
                         me-1
-                    "
-                ></i>
+                    "></i>
 
-                Load Details
+                                Load Details
 
-            </button>
+                            </button>
 
-        </div>
+                        </div>
 
-    </div>
-
-
-    <div
-        id="copyStatus"
-        class="copy-status"
-    ></div>
-
-</div>
+                    </div>
 
 
-<!-- =====================================================
+                    <div
+                        id="copyStatus"
+                        class="copy-status"></div>
+
+                </div>
+
+
+                <!-- =====================================================
      OWNER
 ====================================================== -->
 
-<div class="section-title">
+                <div class="section-title">
 
-    <i class="bi bi-person-badge me-2"></i>
+                    <i class="bi bi-person-badge me-2"></i>
 
-    Owner Information
+                    Owner Information
 
-</div>
-
-
-<div class="mb-3">
-
-    <label
-        class="form-label fw-semibold"
-        for="consigneeName"
-    >
-
-        Owner / Consignee Name
-
-        <span class="required">*</span>
-
-    </label>
+                </div>
 
 
-    <input
-        type="text"
-        name="consignee_name"
-        id="consigneeName"
-        class="form-control"
-        maxlength="150"
-        value="<?= h(
-            $consigneeName !== ''
-            ? $consigneeName
-            : $ownerName
-        ) ?>"
-        placeholder="Owner / Consignee Name"
-        required
-    >
+                <div class="mb-3">
 
-</div>
+                    <label
+                        class="form-label fw-semibold"
+                        for="consigneeName">
+
+                        Owner / Consignee Name
+
+                        <span class="required">*</span>
+
+                    </label>
 
 
-<!-- =====================================================
+                    <input
+                        type="text"
+                        name="consignee_name"
+                        id="consigneeName"
+                        class="form-control"
+                        maxlength="150"
+                        value="<?= h(
+                                    $consigneeName !== ''
+                                        ? $consigneeName
+                                        : $ownerName
+                                ) ?>"
+                        placeholder="Owner / Consignee Name"
+                        required>
+
+                </div>
+
+
+                <!-- =====================================================
      ASSET TYPE
 ====================================================== -->
 
-<div class="section-title">
+                <div class="section-title">
 
-    <i class="bi bi-buildings me-2"></i>
+                    <i class="bi bi-buildings me-2"></i>
 
-    1. Select Asset Type
+                    1. Select Asset Type
 
-</div>
-
-
-<div class="row g-3">
+                </div>
 
 
-    <div class="col-md-6">
+                <div class="row g-3">
 
-        <label
-            class="
+
+                    <div class="col-md-6">
+
+                        <label
+                            class="
                 asset-type-card
                 <?= $assetType === 'Lift'
                     ? 'selected'
                     : '' ?>
             "
-            id="liftCard"
-        >
+                            id="liftCard">
 
-            <input
-                type="radio"
-                name="asset_type"
-                value="Lift"
-                <?= $assetType === 'Lift'
-                    ? 'checked'
-                    : '' ?>
-                required
-            >
+                            <input
+                                type="radio"
+                                name="asset_type"
+                                value="Lift"
+                                <?= $assetType === 'Lift'
+                                    ? 'checked'
+                                    : '' ?>
+                                required>
 
 
-            <div class="asset-type-icon">
+                            <span class="asset-type-check" aria-hidden="true">
+                                <i class="bi bi-check-lg"></i>
+                            </span>
 
-                🛗
+                            <div class="asset-type-icon">
 
-            </div>
+                                🛗
 
-
-            <strong>
-
-                Lift
-
-            </strong>
+                            </div>
 
 
-            <div class="form-help mt-1">
+                            <strong>
 
-                Passenger, Goods, Passenger Cum Goods,
-                Hospital, Service and other lifts.
+                                Lift
 
-            </div>
-
-        </label>
-
-    </div>
+                            </strong>
 
 
-    <div class="col-md-6">
+                            <div class="form-help mt-1">
 
-        <label
-            class="
+                                Passenger, Goods, Passenger Cum Goods,
+                                Hospital, Service and other lifts.
+
+                            </div>
+
+                        </label>
+
+                    </div>
+
+
+                    <div class="col-md-6">
+
+                        <label
+                            class="
                 asset-type-card
                 <?= $assetType === 'Escalator'
                     ? 'selected'
                     : '' ?>
             "
-            id="escalatorCard"
-        >
+                            id="escalatorCard">
 
-            <input
-                type="radio"
-                name="asset_type"
-                value="Escalator"
-                <?= $assetType === 'Escalator'
-                    ? 'checked'
-                    : '' ?>
-                required
-            >
+                            <input
+                                type="radio"
+                                name="asset_type"
+                                value="Escalator"
+                                <?= $assetType === 'Escalator'
+                                    ? 'checked'
+                                    : '' ?>
+                                required>
 
 
-            <div class="asset-type-icon">
+                            <span class="asset-type-check" aria-hidden="true">
+                                <i class="bi bi-check-lg"></i>
+                            </span>
 
-                ↗️
+                            <div class="asset-type-icon">
 
-            </div>
+                                ↗️
 
-
-            <strong>
-
-                Escalator
-
-            </strong>
+                            </div>
 
 
-            <div class="form-help mt-1">
+                            <strong>
 
-                Travelator, Commercial, Heavy Duty
-                and Other.
+                                Escalator
 
-            </div>
-
-        </label>
-
-    </div>
-
-</div>
+                            </strong>
 
 
-<!-- =====================================================
+                            <div class="form-help mt-1">
+
+                                Travelator, Commercial, Heavy Duty
+                                and Other.
+
+                            </div>
+
+                        </label>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =====================================================
      BASIC
 ====================================================== -->
 
-<div class="section-title">
+                <div class="section-title">
 
-    <i class="bi bi-building me-2"></i>
+                    <i class="bi bi-building me-2"></i>
 
-    2. Basic Asset Information
+                    2. Basic Asset Information
 
-</div>
-
-
-<div class="mb-3">
-
-    <label
-        class="form-label fw-semibold"
-        for="assetName"
-    >
-
-        Asset Name
-
-        <span class="required">*</span>
-
-    </label>
+                </div>
 
 
-    <input
-        type="text"
-        name="asset_name"
-        id="assetName"
-        class="form-control"
-        maxlength="150"
-        value="<?= h($assetName) ?>"
-        placeholder="Example: Lift A"
-        required
-    >
+                <div class="mb-3">
+
+                    <label
+                        class="form-label fw-semibold"
+                        for="assetName">
+
+                        Asset Name
+
+                        <span class="required">*</span>
+
+                    </label>
 
 
-    <div class="form-help mt-1">
-
-        Enter the name for the new asset.
-        Existing Asset Name is never copied.
-
-    </div>
-
-</div>
-
-
-<div class="mb-3">
-
-    <label
-        class="form-label fw-semibold"
-        for="location"
-    >
-
-        Location
-
-        <span class="required">*</span>
-
-    </label>
+                    <input
+                        type="text"
+                        name="asset_name"
+                        id="assetName"
+                        class="form-control"
+                        maxlength="150"
+                        value="<?= h($assetName) ?>"
+                        placeholder="Example: Lift A"
+                        required>
 
 
-    <input
-        type="text"
-        name="location"
-        id="location"
-        class="form-control"
-        maxlength="255"
-        value="<?= h($location) ?>"
-        placeholder="Example: Tower A, Main Entrance"
-        required
-    >
+                    <div class="form-help mt-1">
 
-</div>
+                        Enter the name for the new asset.
+                        Existing Asset Name is never copied.
+
+                    </div>
+
+                </div>
 
 
-<div class="mb-3">
+                <div class="mb-3">
 
-    <label
-        class="form-label fw-semibold"
-        for="state"
-    >
+                    <label
+                        class="form-label fw-semibold"
+                        for="location">
 
-        State
+                        Location
 
-        <span class="required">*</span>
+                        <span class="required">*</span>
 
-    </label>
-
-
-    <select
-        name="state"
-        id="state"
-        class="form-select"
-        required
-    >
-
-        <option value="">
-
-            Select State
-
-        </option>
+                    </label>
 
 
-        <?php foreach (
-            $stateCodes as $stateName => $stateCode
-        ): ?>
+                    <input
+                        type="text"
+                        name="location"
+                        id="location"
+                        class="form-control"
+                        maxlength="255"
+                        value="<?= h($location) ?>"
+                        placeholder="Example: Tower A, Main Entrance"
+                        required>
 
-        <option
-            value="<?= h($stateName) ?>"
-            <?= $state === $stateName
-                ? 'selected'
-                : '' ?>
-        >
-
-            <?= h($stateName) ?>
-
-        </option>
-
-        <?php endforeach; ?>
-
-    </select>
-
-</div>
+                </div>
 
 
-<!-- =====================================================
+                <div class="mb-3">
+
+                    <label
+                        class="form-label fw-semibold"
+                        for="state">
+
+                        State
+
+                        <span class="required">*</span>
+
+                    </label>
+
+
+                    <select
+                        name="state"
+                        id="state"
+                        class="form-select"
+                        required>
+
+                        <option value="">
+
+                            Select State
+
+                        </option>
+
+
+                        <?php foreach (
+                            $stateCodes as $stateName => $stateCode
+                        ): ?>
+
+                            <option
+                                value="<?= h($stateName) ?>"
+                                <?= $state === $stateName
+                                    ? 'selected'
+                                    : '' ?>>
+
+                                <?= h($stateName) ?>
+
+                            </option>
+
+                        <?php endforeach; ?>
+
+                    </select>
+
+                </div>
+
+
+                <!-- =====================================================
      LIFT
 ====================================================== -->
 
-<div
-    id="liftDetails"
-    class="asset-specific-section"
->
+                <div
+                    id="liftDetails"
+                    class="asset-specific-section">
 
 
-    <div class="section-title mt-0">
+                    <div class="section-title mt-0">
 
-        <i class="bi bi-building-check me-2"></i>
+                        <i class="bi bi-building-check me-2"></i>
 
-        Lift Information
+                        Lift Information
 
-    </div>
+                    </div>
 
 
-    <div class="row g-3">
+                    <div class="row g-3">
 
 
-        <!-- LIFT TYPE -->
+                        <!-- LIFT TYPE -->
 
-        <div class="col-md-6">
+                        <div class="col-md-6">
 
-            <label
-                class="form-label fw-semibold"
-                for="liftType"
-            >
+                            <label
+                                class="form-label fw-semibold"
+                                for="liftType">
 
-                Lift Type
+                                Lift Type
 
-                <span class="required">*</span>
+                                <span class="required">*</span>
 
-            </label>
+                            </label>
 
 
-            <select
-                name="lift_type"
-                id="liftType"
-                class="form-select"
-            >
+                            <select
+                                name="lift_type"
+                                id="liftType"
+                                class="form-select">
 
-                <option value="">
+                                <option value="">
 
-                    Select Lift Type
+                                    Select Lift Type
 
-                </option>
+                                </option>
 
 
-                <?php foreach (
-                    $liftTypes as $type
-                ): ?>
+                                <?php foreach (
+                                    $liftTypes as $type
+                                ): ?>
 
-                <option
-                    value="<?= h($type) ?>"
-                    <?= $liftType === $type
-                        ? 'selected'
-                        : '' ?>
-                >
+                                    <option
+                                        value="<?= h($type) ?>"
+                                        <?= $liftType === $type
+                                            ? 'selected'
+                                            : '' ?>>
 
-                    <?= h($type) ?>
+                                        <?= h($type) ?>
 
-                </option>
+                                    </option>
 
-                <?php endforeach; ?>
+                                <?php endforeach; ?>
 
-            </select>
+                            </select>
 
-        </div>
+                        </div>
 
 
-        <!-- FLOORS -->
+                        <!-- FLOORS -->
 
-        <div class="col-md-6">
+                        <div class="col-md-6">
 
-            <label
-                class="form-label fw-semibold"
-                for="numberOfFloors"
-            >
+                            <label
+                                class="form-label fw-semibold"
+                                for="numberOfFloors">
 
-                Number of Floors / Levels Served
+                                Number of Floors / Levels Served
 
-                <span class="required">*</span>
+                                <span class="required">*</span>
 
-            </label>
+                            </label>
 
 
-            <input
-                type="number"
-                name="number_of_floors"
-                id="numberOfFloors"
-                class="form-control"
-                min="1"
-                max="200"
-                value="<?= h($numberOfFloors) ?>"
-                placeholder="Example: 10"
-            >
+                            <input
+                                type="number"
+                                name="number_of_floors"
+                                id="numberOfFloors"
+                                class="form-control"
+                                min="1"
+                                max="200"
+                                value="<?= h($numberOfFloors) ?>"
+                                placeholder="Example: 10">
 
-        </div>
+                        </div>
 
 
-        <!-- FLOOR PATTERN -->
+                        <!-- FLOOR PATTERN -->
 
-        <div class="col-md-6">
+                        <div class="col-md-6">
 
-            <label
-                class="form-label fw-semibold"
-                for="floorServiceType"
-            >
+                            <label
+                                class="form-label fw-semibold"
+                                for="floorServiceType">
 
-                Floor Service Pattern
+                                Floor Service Pattern
 
-                <span class="required">*</span>
+                                <span class="required">*</span>
 
-            </label>
+                            </label>
 
 
-            <select
-                name="floor_service_type"
-                id="floorServiceType"
-                class="form-select"
-            >
+                            <select
+                                name="floor_service_type"
+                                id="floorServiceType"
+                                class="form-select">
 
-                <option value="">
+                                <option value="">
 
-                    Select Floor Pattern
+                                    Select Floor Pattern
 
-                </option>
+                                </option>
 
 
-                <?php foreach (
-                    $floorServiceTypes as $pattern
-                ): ?>
+                                <?php foreach (
+                                    $floorServiceTypes as $pattern
+                                ): ?>
 
-                <option
-                    value="<?= h($pattern) ?>"
-                    <?= $floorServiceType === $pattern
-                        ? 'selected'
-                        : '' ?>
-                >
+                                    <option
+                                        value="<?= h($pattern) ?>"
+                                        <?= $floorServiceType === $pattern
+                                            ? 'selected'
+                                            : '' ?>>
 
-                    <?= h($pattern) ?>
+                                        <?= h($pattern) ?>
 
-                </option>
+                                    </option>
 
-                <?php endforeach; ?>
+                                <?php endforeach; ?>
 
-            </select>
+                            </select>
 
-        </div>
+                        </div>
 
 
-        <!-- EVERY NTH FLOOR -->
+                        <!-- EVERY NTH FLOOR -->
 
-        <div
-            class="col-md-6"
-            id="intervalColumn"
-            style="display:none;"
-        >
+                        <div
+                            class="col-md-6"
+                            id="intervalColumn"
+                            style="display:none;">
 
-            <label
-                class="form-label fw-semibold"
-                for="floorInterval"
-            >
+                            <label
+                                class="form-label fw-semibold"
+                                for="floorInterval">
 
-                Every Nth Floor
+                                Every Nth Floor
 
-                <span class="required">*</span>
+                                <span class="required">*</span>
 
-            </label>
+                            </label>
 
 
-            <input
-                type="number"
-                name="floor_interval"
-                id="floorInterval"
-                class="form-control"
-                min="1"
-                max="200"
-                value="<?= h($floorInterval) ?>"
-                placeholder="Example: 2"
-                disabled
-            >
+                            <input
+                                type="number"
+                                name="floor_interval"
+                                id="floorInterval"
+                                class="form-control"
+                                min="1"
+                                max="200"
+                                value="<?= h($floorInterval) ?>"
+                                placeholder="Example: 2"
+                                disabled>
 
 
-            <div class="form-help mt-1">
+                            <div class="form-help mt-1">
 
-                Example: 2 means every 2nd floor.
+                                Example: 2 means every 2nd floor.
 
-            </div>
+                            </div>
 
-        </div>
+                        </div>
 
 
-        <!-- SPECIFIC FLOORS -->
+                        <!-- SPECIFIC FLOORS -->
 
-        <div
-            class="col-md-12"
-            id="specificFloorsColumn"
-            style="display:none;"
-        >
+                        <div
+                            class="col-md-12"
+                            id="specificFloorsColumn"
+                            style="display:none;">
 
-            <label
-                class="form-label fw-semibold"
-                for="servedFloors"
-            >
+                            <label
+                                class="form-label fw-semibold"
+                                for="servedFloors">
 
-                Specific Floors Served
+                                Specific Floors Served
 
-                <span class="required">*</span>
+                                <span class="required">*</span>
 
-            </label>
+                            </label>
 
 
-            <input
-                type="text"
-                name="served_floors"
-                id="servedFloors"
-                class="form-control"
-                maxlength="500"
-                value="<?= h($servedFloors) ?>"
-                placeholder="Example: G, 2, 4, 7, 10"
-                disabled
-            >
+                            <input
+                                type="text"
+                                name="served_floors"
+                                id="servedFloors"
+                                class="form-control"
+                                maxlength="500"
+                                value="<?= h($servedFloors) ?>"
+                                placeholder="Example: G, 2, 4, 7, 10"
+                                disabled>
 
 
-            <div class="form-help mt-1">
+                            <div class="form-help mt-1">
 
-                Separate floors with commas.
-                G or Ground can be used for Ground Floor.
+                                Separate floors with commas.
+                                G or Ground can be used for Ground Floor.
 
-            </div>
+                            </div>
 
-        </div>
+                        </div>
 
 
-        <!-- PASSENGER -->
+                        <!-- PASSENGER -->
 
-        <div
-            class="col-md-6"
-            id="passengerColumn"
-        >
+                        <div
+                            class="col-md-6"
+                            id="passengerColumn">
 
-            <label
-                class="form-label fw-semibold"
-                for="passengerCapacity"
-            >
+                            <label
+                                class="form-label fw-semibold"
+                                for="passengerCapacity">
 
-                Passenger Capacity
+                                Passenger Capacity
 
-                <span class="required">*</span>
+                                <span class="required">*</span>
 
-            </label>
+                            </label>
 
 
-            <input
-                type="number"
-                name="passenger_capacity"
-                id="passengerCapacity"
-                class="form-control"
-                min="1"
-                max="100"
-                value="<?= h($passengerCapacity) ?>"
-                placeholder="Example: 13"
-            >
+                            <input
+                                type="number"
+                                name="passenger_capacity"
+                                id="passengerCapacity"
+                                class="form-control"
+                                min="1"
+                                max="100"
+                                value="<?= h($passengerCapacity) ?>"
+                                placeholder="Example: 13">
 
-        </div>
+                        </div>
 
 
-        <!-- LOAD -->
+                        <!-- LOAD -->
 
-        <div class="col-md-6">
+                        <div class="col-md-6">
 
-            <label
-                class="form-label fw-semibold"
-                for="loadCapacity"
-            >
+                            <label
+                                class="form-label fw-semibold"
+                                for="loadCapacity">
 
-                Rated Load Capacity
+                                Rated Load Capacity
 
-                <span class="required">*</span>
+                                <span class="required">*</span>
 
-            </label>
+                            </label>
 
 
-            <div class="input-group">
+                            <div class="input-group">
 
-                <input
-                    type="number"
-                    name="load_capacity"
-                    id="loadCapacity"
-                    class="form-control"
-                    min="1"
-                    max="10000"
-                    step="1"
-                    value="<?= h($loadCapacity) ?>"
-                    placeholder="Auto / Enter kg"
-                >
+                                <input
+                                    type="number"
+                                    name="load_capacity"
+                                    id="loadCapacity"
+                                    class="form-control"
+                                    min="1"
+                                    max="10000"
+                                    step="1"
+                                    value="<?= h($loadCapacity) ?>"
+                                    placeholder="Auto / Enter kg">
 
 
-                <span class="input-group-text">
+                                <span class="input-group-text">
 
-                    kg
+                                    kg
 
-                </span>
+                                </span>
 
-            </div>
+                            </div>
 
 
-            <div
-                id="autoLoadMessage"
-                class="auto-load-box"
-                style="display:none;"
-            ></div>
+                            <div
+                                id="autoLoadMessage"
+                                class="auto-load-box"
+                                style="display:none;"></div>
 
-        </div>
+                        </div>
 
 
-        <!-- MACHINE -->
+                        <!-- MACHINE -->
 
-        <div class="col-md-6">
+                        <div class="col-md-6">
 
-            <label
-                class="form-label fw-semibold"
-                for="machineType"
-            >
+                            <label
+                                class="form-label fw-semibold"
+                                for="machineType">
 
-                Machine Type
+                                Machine Type
 
-                <span class="required">*</span>
+                                <span class="required">*</span>
 
-            </label>
+                            </label>
 
 
-            <select
-                name="machine_type"
-                id="machineType"
-                class="form-select"
-            >
+                            <select
+                                name="machine_type"
+                                id="machineType"
+                                class="form-select">
 
-                <option value="">
+                                <option value="">
 
-                    Select Machine Type
+                                    Select Machine Type
 
-                </option>
+                                </option>
 
 
-                <?php foreach (
-                    $machineTypes as $machine
-                ): ?>
+                                <?php foreach (
+                                    $machineTypes as $machine
+                                ): ?>
 
-                <option
-                    value="<?= h($machine) ?>"
-                    <?= $machineType === $machine
-                        ? 'selected'
-                        : '' ?>
-                >
+                                    <option
+                                        value="<?= h($machine) ?>"
+                                        <?= $machineType === $machine
+                                            ? 'selected'
+                                            : '' ?>>
 
-                    <?= h($machine) ?>
+                                        <?= h($machine) ?>
 
-                </option>
+                                    </option>
 
-                <?php endforeach; ?>
+                                <?php endforeach; ?>
 
-            </select>
+                            </select>
 
-        </div>
+                        </div>
 
 
-    </div>
+                    </div>
 
-</div>
+                </div>
 
 
-<!-- =====================================================
+                <!-- =====================================================
      ESCALATOR
 ====================================================== -->
 
-<div
-    id="escalatorDetails"
-    class="asset-specific-section"
-    style="display:none;"
->
+                <div
+                    id="escalatorDetails"
+                    class="asset-specific-section"
+                    style="display:none;">
 
 
-    <div class="section-title mt-0">
+                    <div class="section-title mt-0">
 
-        <i
-            class="
+                        <i
+                            class="
                 bi
                 bi-arrow-up-right-square
                 me-2
-            "
-        ></i>
+            "></i>
 
-        Escalator Information
+                        Escalator Information
 
-    </div>
-
-
-    <div class="row g-3">
+                    </div>
 
 
-        <div class="col-md-6">
-
-            <label
-                class="form-label fw-semibold"
-                for="escalatorType"
-            >
-
-                Escalator Type
-
-                <span class="required">*</span>
-
-            </label>
+                    <div class="row g-3">
 
 
-            <select
-                name="escalator_type"
-                id="escalatorType"
-                class="form-select"
-            >
+                        <div class="col-md-6">
 
-                <option value="">
+                            <label
+                                class="form-label fw-semibold"
+                                for="escalatorType">
 
-                    Select Escalator Type
+                                Escalator Type
 
-                </option>
+                                <span class="required">*</span>
 
-
-                <?php foreach (
-                    $escalatorTypes as $type
-                ): ?>
-
-                <option
-                    value="<?= h($type) ?>"
-                    <?= $escalatorType === $type
-                        ? 'selected'
-                        : '' ?>
-                >
-
-                    <?= h($type) ?>
-
-                </option>
-
-                <?php endforeach; ?>
-
-            </select>
-
-        </div>
+                            </label>
 
 
-        <div class="col-md-6">
+                            <select
+                                name="escalator_type"
+                                id="escalatorType"
+                                class="form-select">
 
-            <label
-                class="form-label fw-semibold"
-                for="escalatorRise"
-            >
+                                <option value="">
 
-                Escalator Rise
+                                    Select Escalator Type
 
-                <span class="required">*</span>
-
-            </label>
+                                </option>
 
 
-            <div class="input-group">
+                                <?php foreach (
+                                    $escalatorTypes as $type
+                                ): ?>
 
-                <input
-                    type="number"
-                    name="escalator_rise"
-                    id="escalatorRise"
-                    class="form-control"
-                    min="0.1"
-                    max="50"
-                    step="0.01"
-                    value="<?= h($escalatorRise) ?>"
-                    placeholder="Example: 4.50"
-                >
+                                    <option
+                                        value="<?= h($type) ?>"
+                                        <?= $escalatorType === $type
+                                            ? 'selected'
+                                            : '' ?>>
 
+                                        <?= h($type) ?>
 
-                <span class="input-group-text">
+                                    </option>
 
-                    metres
+                                <?php endforeach; ?>
 
-                </span>
+                            </select>
 
-            </div>
-
-        </div>
-
-    </div>
+                        </div>
 
 
-    <div class="alert alert-info mt-3 mb-0">
+                        <div class="col-md-6">
 
-        <i class="bi bi-info-circle me-1"></i>
+                            <label
+                                class="form-label fw-semibold"
+                                for="escalatorRise">
 
-        Floor-service selection is not used for escalators.
+                                Escalator Rise
 
-    </div>
+                                <span class="required">*</span>
 
-</div>
+                            </label>
 
 
-<!-- =====================================================
+                            <div class="input-group">
+
+                                <input
+                                    type="number"
+                                    name="escalator_rise"
+                                    id="escalatorRise"
+                                    class="form-control"
+                                    min="0.1"
+                                    max="50"
+                                    step="0.01"
+                                    value="<?= h($escalatorRise) ?>"
+                                    placeholder="Example: 4.50">
+
+
+                                <span class="input-group-text">
+
+                                    metres
+
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="alert alert-info mt-3 mb-0">
+
+                        <i class="bi bi-info-circle me-1"></i>
+
+                        Floor-service selection is not used for escalators.
+
+                    </div>
+
+                </div>
+
+
+                <!-- =====================================================
      INSTALLATION
 ====================================================== -->
 
-<div class="section-title">
+                <div class="section-title">
 
-    <i class="bi bi-calendar3 me-2"></i>
+                    <i class="bi bi-calendar3 me-2"></i>
 
-    3. Installation Information
+                    3. Installation Information
 
-</div>
-
-
-<div class="row g-3">
+                </div>
 
 
-    <div class="col-md-6">
-
-        <label
-            class="form-label fw-semibold"
-            for="installationYear"
-        >
-
-            Installation Year
-
-            <span class="required">*</span>
-
-        </label>
+                <div class="row g-3">
 
 
-        <input
-            type="number"
-            name="installation_year"
-            id="installationYear"
-            class="form-control"
-            min="<?= $minInstallationYear ?>"
-            max="<?= $currentYear ?>"
-            value="<?= h($installationYear) ?>"
-            required
-        >
+                    <div class="col-md-6">
 
-    </div>
+                        <label
+                            class="form-label fw-semibold"
+                            for="installationYear">
 
+                            Installation Year
 
-    <div class="col-md-6">
+                            <span class="required">*</span>
 
-        <label
-            class="form-label fw-semibold"
-            for="modificationYear"
-        >
-
-            Modification Year
-
-        </label>
+                        </label>
 
 
-        <input
-            type="number"
-            name="modification_year"
-            id="modificationYear"
-            class="form-control"
-            min="<?= $minInstallationYear ?>"
-            max="<?= $currentYear ?>"
-            value="<?= h($modificationYear) ?>"
-        >
+                        <input
+                            type="number"
+                            name="installation_year"
+                            id="installationYear"
+                            class="form-control"
+                            min="<?= $minInstallationYear ?>"
+                            max="<?= $currentYear ?>"
+                            value="<?= h($installationYear) ?>"
+                            required>
 
-    </div>
-
-</div>
+                    </div>
 
 
-<!-- =====================================================
+                    <div class="col-md-6">
+
+                        <label
+                            class="form-label fw-semibold"
+                            for="modificationYear">
+
+                            Modification Year
+
+                        </label>
+
+
+                        <input
+                            type="number"
+                            name="modification_year"
+                            id="modificationYear"
+                            class="form-control"
+                            min="<?= $minInstallationYear ?>"
+                            max="<?= $currentYear ?>"
+                            value="<?= h($modificationYear) ?>">
+
+                    </div>
+
+                </div>
+
+
+                <!-- =====================================================
      ACTIONS
 ====================================================== -->
 
-<div
-    class="
+                <div
+                    class="
         d-flex
         justify-content-between
         align-items-center
         gap-2
         mt-4
         flex-wrap
-    "
->
+    ">
 
 
-    <a
-        href="service-lifts.php"
-        class="btn btn-outline-secondary"
-    >
+                    <a
+                        href="service-lifts.php"
+                        class="btn btn-outline-secondary">
 
-        <i class="bi bi-arrow-left me-1"></i>
+                        <i class="bi bi-arrow-left me-1"></i>
 
-        Cancel
+                        Cancel
 
-    </a>
-
-
-    <button
-        type="submit"
-        id="saveBtn"
-        class="btn btn-primary px-4"
-    >
-
-        <i class="bi bi-save me-1"></i>
-
-        Save Asset
-
-    </button>
+                    </a>
 
 
-</div>
+                    <button
+                        type="submit"
+                        id="saveBtn"
+                        class="btn btn-primary px-4">
+
+                        <i class="bi bi-save me-1"></i>
+
+                        Save Asset
+
+                    </button>
 
 
-</form>
+                </div>
 
-</div>
 
-</div>
+            </form>
+
+        </div>
+
+    </div>
 
 </div>
 
@@ -3867,1585 +3810,1563 @@ if (
 
 
 <script>
+    document.addEventListener(
+        'DOMContentLoaded',
+        function() {
 
-document.addEventListener(
-    'DOMContentLoaded',
-    function () {
 
+            /* =================================================
+               ELEMENTS
+            ================================================= */
 
-        /* =================================================
-           ELEMENTS
-        ================================================= */
-
-        const form =
-            document.getElementById(
-                'addAssetForm'
-            );
-
-
-        const saveBtn =
-            document.getElementById(
-                'saveBtn'
-            );
-
-
-        const assetRadios =
-            document.querySelectorAll(
-                'input[name="asset_type"]'
-            );
-
-
-        const liftCard =
-            document.getElementById(
-                'liftCard'
-            );
-
-
-        const escalatorCard =
-            document.getElementById(
-                'escalatorCard'
-            );
-
-
-        const liftDetails =
-            document.getElementById(
-                'liftDetails'
-            );
-
-
-        const escalatorDetails =
-            document.getElementById(
-                'escalatorDetails'
-            );
-
-
-        const liftType =
-            document.getElementById(
-                'liftType'
-            );
-
-
-        const passengerCapacity =
-            document.getElementById(
-                'passengerCapacity'
-            );
-
-
-        const loadCapacity =
-            document.getElementById(
-                'loadCapacity'
-            );
-
-
-        const machineType =
-            document.getElementById(
-                'machineType'
-            );
-
-
-        const numberOfFloors =
-            document.getElementById(
-                'numberOfFloors'
-            );
-
-
-        const floorServiceType =
-            document.getElementById(
-                'floorServiceType'
-            );
-
-
-        const floorInterval =
-            document.getElementById(
-                'floorInterval'
-            );
-
-
-        const intervalColumn =
-            document.getElementById(
-                'intervalColumn'
-            );
-
-
-        const servedFloors =
-            document.getElementById(
-                'servedFloors'
-            );
-
-
-        const specificFloorsColumn =
-            document.getElementById(
-                'specificFloorsColumn'
-            );
-
-
-        const passengerColumn =
-            document.getElementById(
-                'passengerColumn'
-            );
-
-
-        const autoLoadMessage =
-            document.getElementById(
-                'autoLoadMessage'
-            );
-
-
-        const escalatorType =
-            document.getElementById(
-                'escalatorType'
-            );
-
-
-        const escalatorRise =
-            document.getElementById(
-                'escalatorRise'
-            );
-
-
-        const existingAssetSelect =
-            document.getElementById(
-                'existingAssetSelect'
-            );
-
-
-        const loadExistingAssetBtn =
-            document.getElementById(
-                'loadExistingAssetBtn'
-            );
-
-
-        const copyStatus =
-            document.getElementById(
-                'copyStatus'
-            );
-
-
-        const assetName =
-            document.getElementById(
-                'assetName'
-            );
-
-
-        const location =
-            document.getElementById(
-                'location'
-            );
-
-
-        const state =
-            document.getElementById(
-                'state'
-            );
-
-
-        const consigneeName =
-            document.getElementById(
-                'consigneeName'
-            );
-
-
-        const installationYear =
-            document.getElementById(
-                'installationYear'
-            );
-
-
-        const modificationYear =
-            document.getElementById(
-                'modificationYear'
-            );
-
-
-        /* =================================================
-           CONSTANTS
-        ================================================= */
-
-        const passengerBasedLiftTypes = [
-
-            'Passenger Lift',
-            'Passenger Cum Goods Lift',
-            'Hospital Lift'
-
-        ];
-
-
-        let submitting =
-            false;
-
-
-        let existingAssetLoaded =
-            false;
-
-
-        /* =================================================
-           SAFE HTML
-        ================================================= */
-
-        function escapeHtml(value) {
-
-            return String(
-                value ?? ''
-            )
-            .replace(
-                /&/g,
-                '&amp;'
-            )
-            .replace(
-                /</g,
-                '&lt;'
-            )
-            .replace(
-                />/g,
-                '&gt;'
-            )
-            .replace(
-                /"/g,
-                '&quot;'
-            )
-            .replace(
-                /'/g,
-                '&#039;'
-            );
-
-        }
-
-
-        /* =================================================
-           AUTO LOAD
-        ================================================= */
-
-        function calculateLoad() {
-
-            const persons =
-                parseInt(
-                    passengerCapacity.value,
-                    10
+            const form =
+                document.getElementById(
+                    'addAssetForm'
                 );
 
 
-            if (
-                Number.isFinite(persons)
-                &&
-                persons > 0
-            ) {
+            const saveBtn =
+                document.getElementById(
+                    'saveBtn'
+                );
 
-                loadCapacity.value =
-                    persons * 68;
+
+            const assetRadios =
+                document.querySelectorAll(
+                    'input[name="asset_type"]'
+                );
+
+
+            const liftCard =
+                document.getElementById(
+                    'liftCard'
+                );
+
+
+            const escalatorCard =
+                document.getElementById(
+                    'escalatorCard'
+                );
+
+
+            const liftDetails =
+                document.getElementById(
+                    'liftDetails'
+                );
+
+
+            const escalatorDetails =
+                document.getElementById(
+                    'escalatorDetails'
+                );
+
+
+            const liftType =
+                document.getElementById(
+                    'liftType'
+                );
+
+
+            const passengerCapacity =
+                document.getElementById(
+                    'passengerCapacity'
+                );
+
+
+            const loadCapacity =
+                document.getElementById(
+                    'loadCapacity'
+                );
+
+
+            const machineType =
+                document.getElementById(
+                    'machineType'
+                );
+
+
+            const numberOfFloors =
+                document.getElementById(
+                    'numberOfFloors'
+                );
+
+
+            const floorServiceType =
+                document.getElementById(
+                    'floorServiceType'
+                );
+
+
+            const floorInterval =
+                document.getElementById(
+                    'floorInterval'
+                );
+
+
+            const intervalColumn =
+                document.getElementById(
+                    'intervalColumn'
+                );
+
+
+            const servedFloors =
+                document.getElementById(
+                    'servedFloors'
+                );
+
+
+            const specificFloorsColumn =
+                document.getElementById(
+                    'specificFloorsColumn'
+                );
+
+
+            const passengerColumn =
+                document.getElementById(
+                    'passengerColumn'
+                );
+
+
+            const autoLoadMessage =
+                document.getElementById(
+                    'autoLoadMessage'
+                );
+
+
+            const escalatorType =
+                document.getElementById(
+                    'escalatorType'
+                );
+
+
+            const escalatorRise =
+                document.getElementById(
+                    'escalatorRise'
+                );
+
+
+            const existingAssetSelect =
+                document.getElementById(
+                    'existingAssetSelect'
+                );
+
+
+            const loadExistingAssetBtn =
+                document.getElementById(
+                    'loadExistingAssetBtn'
+                );
+
+
+            const copyStatus =
+                document.getElementById(
+                    'copyStatus'
+                );
+
+
+            const assetName =
+                document.getElementById(
+                    'assetName'
+                );
+
+
+            const location =
+                document.getElementById(
+                    'location'
+                );
+
+
+            const state =
+                document.getElementById(
+                    'state'
+                );
+
+
+            const consigneeName =
+                document.getElementById(
+                    'consigneeName'
+                );
+
+
+            const installationYear =
+                document.getElementById(
+                    'installationYear'
+                );
+
+
+            const modificationYear =
+                document.getElementById(
+                    'modificationYear'
+                );
+
+
+            /* =================================================
+               CONSTANTS
+            ================================================= */
+
+            const passengerBasedLiftTypes = [
+
+                'Passenger Lift',
+                'Passenger Cum Goods Lift',
+                'Hospital Lift',
+                'Service Lift'
+
+            ];
+
+
+            let submitting =
+                false;
+
+
+            let existingAssetLoaded =
+                false;
+
+
+            /* =================================================
+               SAFE HTML
+            ================================================= */
+
+            function escapeHtml(value) {
+
+                return String(
+                        value ?? ''
+                    )
+                    .replace(
+                        /&/g,
+                        '&amp;'
+                    )
+                    .replace(
+                        /</g,
+                        '&lt;'
+                    )
+                    .replace(
+                        />/g,
+                        '&gt;'
+                    )
+                    .replace(
+                        /"/g,
+                        '&quot;'
+                    )
+                    .replace(
+                        /'/g,
+                        '&#039;'
+                    );
 
             }
 
-        }
+
+            /* =================================================
+               AUTO LOAD
+            ================================================= */
+
+            function calculateLoad() {
+
+                const persons =
+                    parseInt(
+                        passengerCapacity.value,
+                        10
+                    );
 
 
-        /* =================================================
-           LIFT TYPE
-        ================================================= */
-
-        function updateLiftType(
-            preserveLoad = false
-        ) {
-
-            const selected =
-                liftType.value;
-
-
-            if (
-                passengerBasedLiftTypes.includes(
-                    selected
-                )
-            ) {
-
-                passengerColumn.style.display =
-                    'block';
-
-
-                passengerCapacity.disabled =
-                    false;
-
-
-                passengerCapacity.required =
-                    true;
-
-
-                loadCapacity.disabled =
-                    false;
-
-
-                /*
-                 * IMPORTANT:
-                 *
-                 * NOT readonly.
-                 *
-                 * User can manually edit it.
-                 */
-                loadCapacity.readOnly =
-                    false;
-
-
-                loadCapacity.required =
-                    true;
-
-
-                autoLoadMessage.style.display =
-                    'block';
-
-
-                autoLoadMessage.innerHTML =
-
-                    '<small>' +
-                    '<i class="bi bi-calculator me-1"></i>' +
-                    'Automatic calculation: ' +
-                    '<strong>1 passenger = 68 kg</strong>. ' +
-                    'You can manually edit the Rated Load Capacity.' +
-                    '</small>';
-
-
-                /*
-                 * Do not overwrite an existing copied
-                 * value.
-                 */
                 if (
-                    !preserveLoad
-                    &&
-                    loadCapacity.value === ''
+                    Number.isFinite(persons) &&
+                    persons > 0
                 ) {
 
-                    calculateLoad();
+                    loadCapacity.value =
+                        persons * 68;
 
                 }
 
-            } else {
-
-                passengerColumn.style.display =
-                    'block';
-
-
-                passengerCapacity.disabled =
-                    true;
-
-
-                passengerCapacity.required =
-                    false;
-
-
-                passengerCapacity.value =
-                    '';
-
-
-                loadCapacity.disabled =
-                    false;
-
-
-                loadCapacity.readOnly =
-                    false;
-
-
-                loadCapacity.required =
-                    true;
-
-
-                autoLoadMessage.style.display =
-                    'block';
-
-
-                autoLoadMessage.innerHTML =
-
-                    '<small>' +
-                    '<i class="bi bi-info-circle me-1"></i>' +
-                    'Enter the rated load capacity from the equipment specification.' +
-                    '</small>';
-
             }
 
-        }
 
+            /* =================================================
+               LIFT TYPE
+            ================================================= */
 
-        /* =================================================
-           FLOOR SERVICE
-           -------------------------------------------------
-           THIS IS THE MAIN FIX
-        ================================================= */
-
-        function updateFloorService() {
-
-            const pattern =
-                floorServiceType.value;
-
-
-            const isNthFloor =
-                pattern === 'Every Nth Floor';
-
-
-            const isSpecificFloors =
-                pattern === 'Specific Floors';
-
-
-            /* =============================================
-               EVERY NTH FLOOR
-            ============================================== */
-
-            if (
-                isNthFloor
+            function updateLiftType(
+                preserveLoad = false
             ) {
 
-                intervalColumn.style.display =
-                    'block';
+                const selected =
+                    liftType.value;
 
 
-                /*
-                 * Visible -> enabled -> required
-                 */
-                floorInterval.disabled =
-                    false;
-
-
-                floorInterval.required =
-                    true;
-
-            } else {
-
-                intervalColumn.style.display =
-                    'none';
-
-
-                /*
-                 * HIDDEN -> DISABLED -> NOT REQUIRED
-                 *
-                 * This prevents:
-                 *
-                 * "An invalid form control with name
-                 * 'floor_interval' is not focusable."
-                 */
-                floorInterval.disabled =
-                    true;
-
-
-                floorInterval.required =
-                    false;
-
-
-                floorInterval.value =
-                    '';
-
-            }
-
-
-            /* =============================================
-               SPECIFIC FLOORS
-            ============================================== */
-
-            if (
-                isSpecificFloors
-            ) {
-
-                specificFloorsColumn.style.display =
-                    'block';
-
-
-                /*
-                 * Visible -> enabled -> required
-                 */
-                servedFloors.disabled =
-                    false;
-
-
-                servedFloors.required =
-                    true;
-
-            } else {
-
-                specificFloorsColumn.style.display =
-                    'none';
-
-
-                /*
-                 * HIDDEN -> DISABLED -> NOT REQUIRED
-                 */
-                servedFloors.disabled =
-                    true;
-
-
-                servedFloors.required =
-                    false;
-
-
-                servedFloors.value =
-                    '';
-
-            }
-
-        }
-
-
-        /* =================================================
-           ENABLE / DISABLE SECTION
-        ================================================= */
-
-        function setSectionEnabled(
-            section,
-            enabled
-        ) {
-
-            if (!section) {
-                return;
-            }
-
-
-            section
-                .querySelectorAll(
-                    'input, select, textarea'
-                )
-                .forEach(
-                    function (element) {
-
-                        element.disabled =
-                            !enabled;
-
-
-                        /*
-                         * Do not automatically change
-                         * conditional required values here.
-                         */
-                    }
-                );
-
-        }
-
-
-        /* =================================================
-           ASSET TYPE
-        ================================================= */
-
-        function updateAssetType() {
-
-            const selected =
-                document.querySelector(
-                    'input[name="asset_type"]:checked'
-                );
-
-
-            const type =
-                selected
-                ? selected.value
-                : '';
-
-
-            /* =============================================
-               LIFT
-            ============================================== */
-
-            if (
-                type === 'Lift'
-            ) {
-
-                liftDetails.style.display =
-                    'block';
-
-
-                escalatorDetails.style.display =
-                    'none';
-
-
-                liftCard.classList.add(
-                    'selected'
-                );
-
-
-                escalatorCard.classList.remove(
-                    'selected'
-                );
-
-
-                /*
-                 * Enable Lift section.
-                 */
-                setSectionEnabled(
-                    liftDetails,
-                    true
-                );
-
-
-                /*
-                 * Disable Escalator section.
-                 */
-                setSectionEnabled(
-                    escalatorDetails,
-                    false
-                );
-
-
-                /*
-                 * All Escalator fields are not required.
-                 */
-                escalatorType.required =
-                    false;
-
-
-                escalatorRise.required =
-                    false;
-
-
-                updateLiftType(
-                    existingAssetLoaded
-                );
-
-
-                /*
-                 * IMPORTANT:
-                 * Re-run conditional floor state AFTER
-                 * enabling the Lift section.
-                 */
-                updateFloorService();
-
-
-            }
-
-
-            /* =============================================
-               ESCALATOR
-            ============================================== */
-
-            else if (
-                type === 'Escalator'
-            ) {
-
-                liftDetails.style.display =
-                    'none';
-
-
-                escalatorDetails.style.display =
-                    'block';
-
-
-                liftCard.classList.remove(
-                    'selected'
-                );
-
-
-                escalatorCard.classList.add(
-                    'selected'
-                );
-
-
-                /*
-                 * Disable ALL Lift fields.
-                 *
-                 * This automatically removes required
-                 * validation from hidden Lift controls.
-                 */
-                liftDetails
-                    .querySelectorAll(
-                        'input, select, textarea'
+                if (
+                    passengerBasedLiftTypes.includes(
+                        selected
                     )
-                    .forEach(
-                        function (element) {
+                ) {
 
-                            element.disabled =
-                                true;
+                    passengerColumn.style.display =
+                        'block';
 
 
-                            element.required =
-                                false;
+                    passengerCapacity.disabled =
+                        false;
 
-                        }
-                    );
 
+                    passengerCapacity.required =
+                        true;
 
-                /*
-                 * Explicitly disable conditional
-                 * Lift controls.
-                 */
-                floorInterval.disabled =
-                    true;
 
-
-                floorInterval.required =
-                    false;
-
-
-                servedFloors.disabled =
-                    true;
-
-
-                servedFloors.required =
-                    false;
-
-
-                /*
-                 * Enable Escalator fields.
-                 */
-                setSectionEnabled(
-                    escalatorDetails,
-                    true
-                );
-
-
-                escalatorType.required =
-                    true;
-
-
-                escalatorRise.required =
-                    true;
-
-            }
-
-
-            /* =============================================
-               NOTHING SELECTED
-            ============================================== */
-
-            else {
-
-                liftDetails.style.display =
-                    'none';
-
-
-                escalatorDetails.style.display =
-                    'none';
-
-
-                liftCard.classList.remove(
-                    'selected'
-                );
-
-
-                escalatorCard.classList.remove(
-                    'selected'
-                );
-
-
-                /*
-                 * Disable everything.
-                 */
-                liftDetails
-                    .querySelectorAll(
-                        'input, select, textarea'
-                    )
-                    .forEach(
-                        function (element) {
-
-                            element.disabled =
-                                true;
-
-
-                            element.required =
-                                false;
-
-                        }
-                    );
-
-
-                escalatorDetails
-                    .querySelectorAll(
-                        'input, select, textarea'
-                    )
-                    .forEach(
-                        function (element) {
-
-                            element.disabled =
-                                true;
-
-
-                            element.required =
-                                false;
-
-                        }
-                    );
-
-            }
-
-        }
-
-
-        /* =================================================
-           LOAD EXISTING ASSET
-        ================================================= */
-
-        loadExistingAssetBtn.addEventListener(
-            'click',
-            async function () {
-
-                const assetId =
-                    existingAssetSelect.value;
-
-
-                if (!assetId) {
-
-                    copyStatus.className =
-                        'copy-status error';
-
-
-                    copyStatus.innerHTML =
-
-                        '<i class="bi bi-exclamation-circle me-1"></i>' +
-                        'Please select an existing asset first.';
-
-
-                    return;
-                }
-
-
-                loadExistingAssetBtn.disabled =
-                    true;
-
-
-                copyStatus.className =
-                    'copy-status loading';
-
-
-                copyStatus.innerHTML =
-
-                    '<i class="bi bi-hourglass-split me-1"></i>' +
-                    'Loading asset details...';
-
-
-                loadExistingAssetBtn.innerHTML =
-
-                    '<span class="spinner-border ' +
-                    'spinner-border-sm me-1">' +
-                    '</span>' +
-                    'Loading...';
-
-
-                try {
-
-                    const url =
-                        window.location.pathname
-                        +
-                        '?action=get_existing_asset'
-                        +
-                        '&asset_id='
-                        +
-                        encodeURIComponent(
-                            assetId
-                        );
-
-
-                    const response =
-                        await fetch(
-                            url,
-                            {
-                                method:
-                                    'GET',
-
-                                credentials:
-                                    'same-origin',
-
-                                headers: {
-                                    'Accept':
-                                        'application/json'
-                                }
-                            }
-                        );
-
-
-                    if (
-                        !response.ok
-                    ) {
-
-                        throw new Error(
-                            'Server returned HTTP '
-                            +
-                            response.status
-                        );
-                    }
-
-
-                    const data =
-                        await response.json();
-
-
-                    if (
-                        !data.success
-                    ) {
-
-                        throw new Error(
-                            data.message
-                            ||
-                            'Unable to load asset.'
-                        );
-                    }
-
-
-                    const asset =
-                        data.asset;
+                    loadCapacity.disabled =
+                        false;
 
 
                     /*
                      * IMPORTANT:
                      *
-                     * DO NOT COPY asset.asset_name.
+                     * NOT readonly.
                      *
-                     * New Asset Name stays blank/current.
+                     * User can manually edit it.
                      */
-                    location.value =
-                        asset.location
-                        || '';
-
-
-                    state.value =
-                        asset.state
-                        || '';
-
-
-                    if (
-                        asset.consignee_name
-                    ) {
-
-                        consigneeName.value =
-                            asset.consignee_name;
-
-                    }
-
-
-                    /* =====================================
-                       ASSET TYPE
-                    ====================================== */
-
-                    if (
-                        asset.asset_type ===
-                            'Lift'
-                        ||
-                        asset.asset_type ===
-                            'Escalator'
-                    ) {
-
-                        const radio =
-                            document.querySelector(
-                                'input[name="asset_type"][value="' +
-                                asset.asset_type +
-                                '"]'
-                            );
-
-
-                        if (radio) {
-
-                            radio.checked =
-                                true;
-                        }
-                    }
-
-
-                    /*
-                     * Mark loaded BEFORE updateAssetType
-                     * so the existing load capacity is
-                     * preserved.
-                     */
-                    existingAssetLoaded =
-                        true;
-
-
-                    updateAssetType();
-
-
-                    /* =====================================
-                       LIFT
-                    ====================================== */
-
-                    if (
-                        asset.asset_type ===
-                            'Lift'
-                    ) {
-
-                        liftType.value =
-                            asset.lift_type
-                            || '';
-
-
-                        numberOfFloors.value =
-                            asset.number_of_floors
-                            ?? '';
-
-
-                        floorServiceType.value =
-                            asset.floor_service_type
-                            || '';
-
-
-                        servedFloors.value =
-                            asset.served_floors
-                            || '';
-
-
-                        floorInterval.value =
-                            asset.floor_interval
-                            ?? '';
-
-
-                        passengerCapacity.value =
-                            asset.passenger_capacity
-                            ?? '';
-
-
-                        /*
-                         * Preserve exact existing load.
-                         */
-                        loadCapacity.value =
-                            asset.load_capacity
-                            ?? '';
-
-
-                        machineType.value =
-                            asset.machine_type
-                            || '';
-
-
-                        updateLiftType(
-                            true
-                        );
-
-
-                        /*
-                         * IMPORTANT:
-                         * This enables/disables floor_interval
-                         * correctly based on the copied pattern.
-                         */
-                        updateFloorService();
-
-                    }
-
-
-                    /* =====================================
-                       ESCALATOR
-                    ====================================== */
-
-                    if (
-                        asset.asset_type ===
-                            'Escalator'
-                    ) {
-
-                        escalatorType.value =
-                            asset.escalator_type
-                            || '';
-
-
-                        escalatorRise.value =
-                            asset.escalator_rise
-                            ?? '';
-
-                    }
-
-
-                    /* =====================================
-                       INSTALLATION
-                    ====================================== */
-
-                    installationYear.value =
-                        asset.installation_year
-                        || '';
-
-
-                    modificationYear.value =
-                        asset.modification_year
-                        ?? '';
-
-
-                    /* =====================================
-                       SUCCESS
-                    ====================================== */
-
-                    const selectedOption =
-                        existingAssetSelect
-                        .options[
-                            existingAssetSelect
-                            .selectedIndex
-                        ];
-
-
-                    const selectedText =
-                        selectedOption
-                        ? selectedOption.text
-                        : 'Existing Asset';
-
-
-                    copyStatus.className =
-                        'copy-status success';
-
-
-                    copyStatus.innerHTML =
-
-                        '<i class="bi bi-check-circle-fill me-1"></i>' +
-                        '<strong>Details copied successfully.</strong> ' +
-                        escapeHtml(
-                            selectedText
-                        ) +
-                        '. Enter the new Asset Name above. ' +
-                        'You can edit any copied field before saving.';
-
-
-                    /*
-                     * Focus new Asset Name.
-                     */
-                    assetName.focus();
-
-
-                    assetName.scrollIntoView({
-                        behavior:
-                            'smooth',
-
-                        block:
-                            'center'
-                    });
-
-
-                } catch (
-                    error
-                ) {
-
-                    console.error(
-                        'Existing asset load error:',
-                        error
-                    );
-
-
-                    copyStatus.className =
-                        'copy-status error';
-
-
-                    copyStatus.innerHTML =
-
-                        '<i class="bi bi-exclamation-triangle-fill me-1"></i>' +
-                        escapeHtml(
-                            error.message
-                            ||
-                            'Unable to load asset.'
-                        );
-
-                } finally {
-
-                    loadExistingAssetBtn.disabled =
+                    loadCapacity.readOnly =
                         false;
 
 
-                    loadExistingAssetBtn.innerHTML =
-
-                        '<i class="bi bi-arrow-down-circle me-1"></i>' +
-                        'Load Details';
-
-                }
-
-            }
-        );
+                    loadCapacity.required =
+                        true;
 
 
-        /* =================================================
-           EVENTS
-        ================================================= */
-
-        assetRadios.forEach(
-            function (radio) {
-
-                radio.addEventListener(
-                    'change',
-                    function () {
-
-                        existingAssetLoaded =
-                            false;
+                    autoLoadMessage.style.display =
+                        'block';
 
 
-                        updateAssetType();
+                    autoLoadMessage.innerHTML =
+
+                        '<small>' +
+                        '<i class="bi bi-calculator me-1"></i>' +
+                        'Automatic calculation: ' +
+                        '<strong>1 passenger = 68 kg</strong>. ' +
+                        'You can manually edit the Rated Load Capacity.' +
+                        '</small>';
+
+
+                    /*
+                     * Do not overwrite an existing copied
+                     * value.
+                     */
+                    if (
+                        !preserveLoad &&
+                        loadCapacity.value === ''
+                    ) {
+
+                        calculateLoad();
 
                     }
-                );
+
+                } else {
+
+                    passengerColumn.style.display =
+                        'block';
+
+
+                    passengerCapacity.disabled =
+                        true;
+
+
+                    passengerCapacity.required =
+                        false;
+
+
+                    passengerCapacity.value =
+                        '';
+
+
+                    loadCapacity.disabled =
+                        false;
+
+
+                    loadCapacity.readOnly =
+                        false;
+
+
+                    loadCapacity.required =
+                        true;
+
+
+                    autoLoadMessage.style.display =
+                        'block';
+
+
+                    autoLoadMessage.innerHTML =
+
+                        '<small>' +
+                        '<i class="bi bi-info-circle me-1"></i>' +
+                        'Enter the rated load capacity from the equipment specification.' +
+                        '</small>';
+
+                }
 
             }
-        );
 
 
-        liftType.addEventListener(
-            'change',
-            function () {
+            /* =================================================
+               FLOOR SERVICE
+               -------------------------------------------------
+               THIS IS THE MAIN FIX
+            ================================================= */
 
-                existingAssetLoaded =
-                    false;
+            function updateFloorService() {
 
-
-                /*
-                 * If the user changes lift type,
-                 * calculate load only when appropriate.
-                 */
-                updateLiftType(
-                    false
-                );
-
-            }
-        );
+                const pattern =
+                    floorServiceType.value;
 
 
-        passengerCapacity.addEventListener(
-            'input',
-            function () {
+                const isNthFloor =
+                    pattern === 'Every Nth Floor';
 
-                /*
-                 * When passenger capacity changes,
-                 * recalculate the load.
-                 *
-                 * User can then manually edit it.
-                 */
+
+                const isSpecificFloors =
+                    pattern === 'Specific Floors';
+
+
+                /* =============================================
+                   EVERY NTH FLOOR
+                ============================================== */
+
                 if (
-                    passengerBasedLiftTypes.includes(
-                        liftType.value
+                    isNthFloor
+                ) {
+
+                    intervalColumn.style.display =
+                        'block';
+
+
+                    /*
+                     * Visible -> enabled -> required
+                     */
+                    floorInterval.disabled =
+                        false;
+
+
+                    floorInterval.required =
+                        true;
+
+                } else {
+
+                    intervalColumn.style.display =
+                        'none';
+
+
+                    /*
+                     * HIDDEN -> DISABLED -> NOT REQUIRED
+                     *
+                     * This prevents:
+                     *
+                     * "An invalid form control with name
+                     * 'floor_interval' is not focusable."
+                     */
+                    floorInterval.disabled =
+                        true;
+
+
+                    floorInterval.required =
+                        false;
+
+
+                    floorInterval.value =
+                        '';
+
+                }
+
+
+                /* =============================================
+                   SPECIFIC FLOORS
+                ============================================== */
+
+                if (
+                    isSpecificFloors
+                ) {
+
+                    specificFloorsColumn.style.display =
+                        'block';
+
+
+                    /*
+                     * Visible -> enabled -> required
+                     */
+                    servedFloors.disabled =
+                        false;
+
+
+                    servedFloors.required =
+                        true;
+
+                } else {
+
+                    specificFloorsColumn.style.display =
+                        'none';
+
+
+                    /*
+                     * HIDDEN -> DISABLED -> NOT REQUIRED
+                     */
+                    servedFloors.disabled =
+                        true;
+
+
+                    servedFloors.required =
+                        false;
+
+
+                    servedFloors.value =
+                        '';
+
+                }
+
+            }
+
+
+            /* =================================================
+               ENABLE / DISABLE SECTION
+            ================================================= */
+
+            function setSectionEnabled(
+                section,
+                enabled
+            ) {
+
+                if (!section) {
+                    return;
+                }
+
+
+                section
+                    .querySelectorAll(
+                        'input, select, textarea'
                     )
-                ) {
+                    .forEach(
+                        function(element) {
 
-                    calculateLoad();
-
-                }
-
-            }
-        );
+                            element.disabled = !enabled;
 
 
-        floorServiceType.addEventListener(
-            'change',
-            function () {
-
-                updateFloorService();
+                            /*
+                             * Do not automatically change
+                             * conditional required values here.
+                             */
+                        }
+                    );
 
             }
-        );
 
 
-        /* =================================================
-           FORM SUBMIT
-           -------------------------------------------------
-           IMPORTANT:
-           We manually validate conditional controls
-           BEFORE disabling the button.
-        ================================================= */
+            /* =================================================
+               ASSET TYPE
+            ================================================= */
 
-        form.addEventListener(
-            'submit',
-            function (event) {
+            function updateAssetType() {
 
-                if (submitting) {
-
-                    event.preventDefault();
-
-                    return;
-                }
-
-
-                /*
-                 * FIRST:
-                 * Make sure conditional fields are in
-                 * their correct enabled/required state.
-                 */
-                updateAssetType();
-
-
-                /*
-                 * Browser validation.
-                 *
-                 * Hidden conditional fields are now
-                 * disabled, so they cannot produce:
-                 *
-                 * "not focusable"
-                 */
-                if (
-                    !form.checkValidity()
-                ) {
-
-                    event.preventDefault();
-
-
-                    form.reportValidity();
-
-
-                    return;
-                }
-
-
-                /*
-                 * Extra safety.
-                 */
                 const selected =
                     document.querySelector(
                         'input[name="asset_type"]:checked'
                     );
 
 
-                if (!selected) {
+                const type =
+                    selected ?
+                    selected.value :
+                    '';
 
-                    event.preventDefault();
+
+                /* =============================================
+                   LIFT
+                ============================================== */
+
+                if (
+                    type === 'Lift'
+                ) {
+
+                    liftDetails.style.display =
+                        'block';
 
 
-                    alert(
-                        'Please select Lift or Escalator.'
+                    escalatorDetails.style.display =
+                        'none';
+
+
+                    liftCard.classList.add(
+                        'selected'
                     );
 
 
-                    return;
+                    escalatorCard.classList.remove(
+                        'selected'
+                    );
+
+
+                    /*
+                     * Enable Lift section.
+                     */
+                    setSectionEnabled(
+                        liftDetails,
+                        true
+                    );
+
+
+                    /*
+                     * Disable Escalator section.
+                     */
+                    setSectionEnabled(
+                        escalatorDetails,
+                        false
+                    );
+
+
+                    /*
+                     * All Escalator fields are not required.
+                     */
+                    escalatorType.required =
+                        false;
+
+
+                    escalatorRise.required =
+                        false;
+
+
+                    updateLiftType(
+                        existingAssetLoaded
+                    );
+
+
+                    /*
+                     * IMPORTANT:
+                     * Re-run conditional floor state AFTER
+                     * enabling the Lift section.
+                     */
+                    updateFloorService();
+
+
                 }
 
 
-                /* =========================================
-                   LIFT
-                ========================================== */
-
-                if (
-                    selected.value ===
-                        'Lift'
+                /* =============================================
+                   ESCALATOR
+                ============================================== */
+                else if (
+                    type === 'Escalator'
                 ) {
 
+                    liftDetails.style.display =
+                        'none';
 
-                    if (
-                        !liftType.value
-                    ) {
 
-                        event.preventDefault();
+                    escalatorDetails.style.display =
+                        'block';
 
-                        liftType.focus();
 
-                        alert(
-                            'Please select Lift Type.'
+                    liftCard.classList.remove(
+                        'selected'
+                    );
+
+
+                    escalatorCard.classList.add(
+                        'selected'
+                    );
+
+
+                    /*
+                     * Disable ALL Lift fields.
+                     *
+                     * This automatically removes required
+                     * validation from hidden Lift controls.
+                     */
+                    liftDetails
+                        .querySelectorAll(
+                            'input, select, textarea'
+                        )
+                        .forEach(
+                            function(element) {
+
+                                element.disabled =
+                                    true;
+
+
+                                element.required =
+                                    false;
+
+                            }
                         );
+
+
+                    /*
+                     * Explicitly disable conditional
+                     * Lift controls.
+                     */
+                    floorInterval.disabled =
+                        true;
+
+
+                    floorInterval.required =
+                        false;
+
+
+                    servedFloors.disabled =
+                        true;
+
+
+                    servedFloors.required =
+                        false;
+
+
+                    /*
+                     * Enable Escalator fields.
+                     */
+                    setSectionEnabled(
+                        escalatorDetails,
+                        true
+                    );
+
+
+                    escalatorType.required =
+                        true;
+
+
+                    escalatorRise.required =
+                        true;
+
+                }
+
+
+                /* =============================================
+                   NOTHING SELECTED
+                ============================================== */
+                else {
+
+                    liftDetails.style.display =
+                        'none';
+
+
+                    escalatorDetails.style.display =
+                        'none';
+
+
+                    liftCard.classList.remove(
+                        'selected'
+                    );
+
+
+                    escalatorCard.classList.remove(
+                        'selected'
+                    );
+
+
+                    /*
+                     * Disable everything.
+                     */
+                    liftDetails
+                        .querySelectorAll(
+                            'input, select, textarea'
+                        )
+                        .forEach(
+                            function(element) {
+
+                                element.disabled =
+                                    true;
+
+
+                                element.required =
+                                    false;
+
+                            }
+                        );
+
+
+                    escalatorDetails
+                        .querySelectorAll(
+                            'input, select, textarea'
+                        )
+                        .forEach(
+                            function(element) {
+
+                                element.disabled =
+                                    true;
+
+
+                                element.required =
+                                    false;
+
+                            }
+                        );
+
+                }
+
+            }
+
+
+            /* =================================================
+               LOAD EXISTING ASSET
+            ================================================= */
+
+            loadExistingAssetBtn.addEventListener(
+                'click',
+                async function() {
+
+                    const assetId =
+                        existingAssetSelect.value;
+
+
+                    if (!assetId) {
+
+                        copyStatus.className =
+                            'copy-status error';
+
+
+                        copyStatus.innerHTML =
+
+                            '<i class="bi bi-exclamation-circle me-1"></i>' +
+                            'Please select an existing asset first.';
+
 
                         return;
                     }
 
 
-                    if (
-                        !numberOfFloors.value
+                    loadExistingAssetBtn.disabled =
+                        true;
+
+
+                    copyStatus.className =
+                        'copy-status loading';
+
+
+                    copyStatus.innerHTML =
+
+                        '<i class="bi bi-hourglass-split me-1"></i>' +
+                        'Loading asset details...';
+
+
+                    loadExistingAssetBtn.innerHTML =
+
+                        '<span class="spinner-border ' +
+                        'spinner-border-sm me-1">' +
+                        '</span>' +
+                        'Loading...';
+
+
+                    try {
+
+                        const url =
+                            window.location.pathname +
+                            '?action=get_existing_asset' +
+                            '&asset_id=' +
+                            encodeURIComponent(
+                                assetId
+                            );
+
+
+                        const response =
+                            await fetch(
+                                url, {
+                                    method: 'GET',
+
+                                    credentials: 'same-origin',
+
+                                    headers: {
+                                        'Accept': 'application/json'
+                                    }
+                                }
+                            );
+
+
+                        if (
+                            !response.ok
+                        ) {
+
+                            throw new Error(
+                                'Server returned HTTP ' +
+                                response.status
+                            );
+                        }
+
+
+                        const data =
+                            await response.json();
+
+
+                        if (
+                            !data.success
+                        ) {
+
+                            throw new Error(
+                                data.message ||
+                                'Unable to load asset.'
+                            );
+                        }
+
+
+                        const asset =
+                            data.asset;
+
+
+                        /*
+                         * IMPORTANT:
+                         *
+                         * DO NOT COPY asset.asset_name.
+                         *
+                         * New Asset Name stays blank/current.
+                         */
+                        location.value =
+                            asset.location ||
+                            '';
+
+
+                        state.value =
+                            asset.state ||
+                            '';
+
+
+                        if (
+                            asset.consignee_name
+                        ) {
+
+                            consigneeName.value =
+                                asset.consignee_name;
+
+                        }
+
+
+                        /* =====================================
+                           ASSET TYPE
+                        ====================================== */
+
+                        if (
+                            asset.asset_type ===
+                            'Lift' ||
+                            asset.asset_type ===
+                            'Escalator'
+                        ) {
+
+                            const radio =
+                                document.querySelector(
+                                    'input[name="asset_type"][value="' +
+                                    asset.asset_type +
+                                    '"]'
+                                );
+
+
+                            if (radio) {
+
+                                radio.checked =
+                                    true;
+                            }
+                        }
+
+
+                        /*
+                         * Mark loaded BEFORE updateAssetType
+                         * so the existing load capacity is
+                         * preserved.
+                         */
+                        existingAssetLoaded =
+                            true;
+
+
+                        updateAssetType();
+
+
+                        /* =====================================
+                           LIFT
+                        ====================================== */
+
+                        if (
+                            asset.asset_type ===
+                            'Lift'
+                        ) {
+
+                            liftType.value =
+                                asset.lift_type ||
+                                '';
+
+
+                            numberOfFloors.value =
+                                asset.number_of_floors ??
+                                '';
+
+
+                            floorServiceType.value =
+                                asset.floor_service_type ||
+                                '';
+
+
+                            servedFloors.value =
+                                asset.served_floors ||
+                                '';
+
+
+                            floorInterval.value =
+                                asset.floor_interval ??
+                                '';
+
+
+                            passengerCapacity.value =
+                                asset.passenger_capacity ??
+                                '';
+
+
+                            /*
+                             * Preserve exact existing load.
+                             */
+                            loadCapacity.value =
+                                asset.load_capacity ??
+                                '';
+
+
+                            machineType.value =
+                                asset.machine_type ||
+                                '';
+
+
+                            updateLiftType(
+                                true
+                            );
+
+
+                            /*
+                             * IMPORTANT:
+                             * This enables/disables floor_interval
+                             * correctly based on the copied pattern.
+                             */
+                            updateFloorService();
+
+                        }
+
+
+                        /* =====================================
+                           ESCALATOR
+                        ====================================== */
+
+                        if (
+                            asset.asset_type ===
+                            'Escalator'
+                        ) {
+
+                            escalatorType.value =
+                                asset.escalator_type ||
+                                '';
+
+
+                            escalatorRise.value =
+                                asset.escalator_rise ??
+                                '';
+
+                        }
+
+
+                        /* =====================================
+                           INSTALLATION
+                        ====================================== */
+
+                        installationYear.value =
+                            asset.installation_year ||
+                            '';
+
+
+                        modificationYear.value =
+                            asset.modification_year ??
+                            '';
+
+
+                        /* =====================================
+                           SUCCESS
+                        ====================================== */
+
+                        const selectedOption =
+                            existingAssetSelect
+                            .options[
+                                existingAssetSelect
+                                .selectedIndex
+                            ];
+
+
+                        const selectedText =
+                            selectedOption ?
+                            selectedOption.text :
+                            'Existing Asset';
+
+
+                        copyStatus.className =
+                            'copy-status success';
+
+
+                        copyStatus.innerHTML =
+
+                            '<i class="bi bi-check-circle-fill me-1"></i>' +
+                            '<strong>Details copied successfully.</strong> ' +
+                            escapeHtml(
+                                selectedText
+                            ) +
+                            '. Enter the new Asset Name above. ' +
+                            'You can edit any copied field before saving.';
+
+
+                        /*
+                         * Focus new Asset Name.
+                         */
+                        assetName.focus();
+
+
+                        assetName.scrollIntoView({
+                            behavior: 'smooth',
+
+                            block: 'center'
+                        });
+
+
+                    } catch (
+                        error
                     ) {
 
-                        event.preventDefault();
-
-                        numberOfFloors.focus();
-
-                        alert(
-                            'Please enter Number of Floors / Levels Served.'
+                        console.error(
+                            'Existing asset load error:',
+                            error
                         );
 
-                        return;
+
+                        copyStatus.className =
+                            'copy-status error';
+
+
+                        copyStatus.innerHTML =
+
+                            '<i class="bi bi-exclamation-triangle-fill me-1"></i>' +
+                            escapeHtml(
+                                error.message ||
+                                'Unable to load asset.'
+                            );
+
+                    } finally {
+
+                        loadExistingAssetBtn.disabled =
+                            false;
+
+
+                        loadExistingAssetBtn.innerHTML =
+
+                            '<i class="bi bi-arrow-down-circle me-1"></i>' +
+                            'Load Details';
+
                     }
 
-
-                    if (
-                        !floorServiceType.value
-                    ) {
-
-                        event.preventDefault();
-
-                        floorServiceType.focus();
-
-                        alert(
-                            'Please select Floor Service Pattern.'
-                        );
-
-                        return;
-                    }
+                }
+            );
 
 
-                    if (
-                        floorServiceType.value ===
-                            'Every Nth Floor'
-                        &&
-                        !floorInterval.value
-                    ) {
+            /* =================================================
+               EVENTS
+            ================================================= */
 
-                        event.preventDefault();
+            assetRadios.forEach(
+                function(radio) {
 
-                        floorInterval.focus();
+                    radio.addEventListener(
+                        'change',
+                        function() {
 
-                        alert(
-                            'Please enter Every Nth Floor interval.'
-                        );
-
-                        return;
-                    }
+                            existingAssetLoaded =
+                                false;
 
 
-                    if (
-                        floorServiceType.value ===
-                            'Specific Floors'
-                        &&
-                        !servedFloors.value
-                    ) {
+                            updateAssetType();
 
-                        event.preventDefault();
+                        }
+                    );
 
-                        servedFloors.focus();
-
-                        alert(
-                            'Please enter Specific Floors Served.'
-                        );
-
-                        return;
-                    }
+                }
+            );
 
 
+            liftType.addEventListener(
+                'change',
+                function() {
+
+                    existingAssetLoaded =
+                        false;
+
+
+                    /*
+                     * If the user changes lift type,
+                     * calculate load only when appropriate.
+                     */
+                    updateLiftType(
+                        false
+                    );
+
+                }
+            );
+
+
+            passengerCapacity.addEventListener(
+                'input',
+                function() {
+
+                    /*
+                     * When passenger capacity changes,
+                     * recalculate the load.
+                     *
+                     * User can then manually edit it.
+                     */
                     if (
                         passengerBasedLiftTypes.includes(
                             liftType.value
                         )
-                        &&
-                        !passengerCapacity.value
                     ) {
 
-                        event.preventDefault();
+                        calculateLoad();
 
-                        passengerCapacity.focus();
-
-                        alert(
-                            'Please enter Passenger Capacity.'
-                        );
-
-                        return;
-                    }
-
-
-                    if (
-                        !loadCapacity.value
-                    ) {
-
-                        event.preventDefault();
-
-                        loadCapacity.focus();
-
-                        alert(
-                            'Please enter Rated Load Capacity.'
-                        );
-
-                        return;
-                    }
-
-
-                    if (
-                        !machineType.value
-                    ) {
-
-                        event.preventDefault();
-
-                        machineType.focus();
-
-                        alert(
-                            'Please select Machine Type.'
-                        );
-
-                        return;
                     }
 
                 }
+            );
 
 
-                /* =========================================
-                   ESCALATOR
-                ========================================== */
+            floorServiceType.addEventListener(
+                'change',
+                function() {
 
-                if (
-                    selected.value ===
+                    updateFloorService();
+
+                }
+            );
+
+
+            /* =================================================
+               FORM SUBMIT
+               -------------------------------------------------
+               IMPORTANT:
+               We manually validate conditional controls
+               BEFORE disabling the button.
+            ================================================= */
+
+            form.addEventListener(
+                'submit',
+                function(event) {
+
+                    if (submitting) {
+
+                        event.preventDefault();
+
+                        return;
+                    }
+
+
+                    /*
+                     * FIRST:
+                     * Make sure conditional fields are in
+                     * their correct enabled/required state.
+                     */
+                    updateAssetType();
+
+
+                    /*
+                     * Browser validation.
+                     *
+                     * Hidden conditional fields are now
+                     * disabled, so they cannot produce:
+                     *
+                     * "not focusable"
+                     */
+                    if (
+                        !form.checkValidity()
+                    ) {
+
+                        event.preventDefault();
+
+
+                        form.reportValidity();
+
+
+                        return;
+                    }
+
+
+                    /*
+                     * Extra safety.
+                     */
+                    const selected =
+                        document.querySelector(
+                            'input[name="asset_type"]:checked'
+                        );
+
+
+                    if (!selected) {
+
+                        event.preventDefault();
+
+
+                        alert(
+                            'Please select Lift or Escalator.'
+                        );
+
+
+                        return;
+                    }
+
+
+                    /* =========================================
+                       LIFT
+                    ========================================== */
+
+                    if (
+                        selected.value ===
+                        'Lift'
+                    ) {
+
+
+                        if (
+                            !liftType.value
+                        ) {
+
+                            event.preventDefault();
+
+                            liftType.focus();
+
+                            alert(
+                                'Please select Lift Type.'
+                            );
+
+                            return;
+                        }
+
+
+                        if (
+                            !numberOfFloors.value
+                        ) {
+
+                            event.preventDefault();
+
+                            numberOfFloors.focus();
+
+                            alert(
+                                'Please enter Number of Floors / Levels Served.'
+                            );
+
+                            return;
+                        }
+
+
+                        if (
+                            !floorServiceType.value
+                        ) {
+
+                            event.preventDefault();
+
+                            floorServiceType.focus();
+
+                            alert(
+                                'Please select Floor Service Pattern.'
+                            );
+
+                            return;
+                        }
+
+
+                        if (
+                            floorServiceType.value ===
+                            'Every Nth Floor' &&
+                            !floorInterval.value
+                        ) {
+
+                            event.preventDefault();
+
+                            floorInterval.focus();
+
+                            alert(
+                                'Please enter Every Nth Floor interval.'
+                            );
+
+                            return;
+                        }
+
+
+                        if (
+                            floorServiceType.value ===
+                            'Specific Floors' &&
+                            !servedFloors.value
+                        ) {
+
+                            event.preventDefault();
+
+                            servedFloors.focus();
+
+                            alert(
+                                'Please enter Specific Floors Served.'
+                            );
+
+                            return;
+                        }
+
+
+                        if (
+                            passengerBasedLiftTypes.includes(
+                                liftType.value
+                            ) &&
+                            !passengerCapacity.value
+                        ) {
+
+                            event.preventDefault();
+
+                            passengerCapacity.focus();
+
+                            alert(
+                                'Please enter Passenger Capacity.'
+                            );
+
+                            return;
+                        }
+
+
+                        if (
+                            !loadCapacity.value
+                        ) {
+
+                            event.preventDefault();
+
+                            loadCapacity.focus();
+
+                            alert(
+                                'Please enter Rated Load Capacity.'
+                            );
+
+                            return;
+                        }
+
+
+                        if (
+                            !machineType.value
+                        ) {
+
+                            event.preventDefault();
+
+                            machineType.focus();
+
+                            alert(
+                                'Please select Machine Type.'
+                            );
+
+                            return;
+                        }
+
+                    }
+
+
+                    /* =========================================
+                       ESCALATOR
+                    ========================================== */
+
+                    if (
+                        selected.value ===
                         'Escalator'
-                ) {
+                    ) {
 
+
+                        if (
+                            !escalatorType.value
+                        ) {
+
+                            event.preventDefault();
+
+                            escalatorType.focus();
+
+                            alert(
+                                'Please select Escalator Type.'
+                            );
+
+                            return;
+                        }
+
+
+                        if (
+                            !escalatorRise.value
+                        ) {
+
+                            event.preventDefault();
+
+                            escalatorRise.focus();
+
+                            alert(
+                                'Please enter Escalator Rise.'
+                            );
+
+                            return;
+                        }
+
+                    }
+
+
+                    /* =========================================
+                       INSTALLATION
+                    ========================================== */
 
                     if (
-                        !escalatorType.value
+                        !installationYear.value
                     ) {
 
                         event.preventDefault();
 
-                        escalatorType.focus();
+                        installationYear.focus();
 
                         alert(
-                            'Please select Escalator Type.'
+                            'Please enter Installation Year.'
                         );
 
                         return;
                     }
 
 
-                    if (
-                        !escalatorRise.value
-                    ) {
+                    /* =========================================
+                       FINAL SUBMIT
+                    ========================================== */
 
-                        event.preventDefault();
+                    submitting =
+                        true;
 
-                        escalatorRise.focus();
 
-                        alert(
-                            'Please enter Escalator Rise.'
-                        );
+                    /*
+                     * Only now disable button.
+                     */
+                    saveBtn.disabled =
+                        true;
 
-                        return;
-                    }
+
+                    saveBtn.innerHTML =
+
+                        '<span class="spinner-border ' +
+                        'spinner-border-sm me-1">' +
+                        '</span>' +
+                        'Saving Asset...';
+
+                    /*
+                     * IMPORTANT:
+                     *
+                     * Do NOT call calculateLoad() here.
+                     *
+                     * If user manually changed:
+                     *
+                     * 884 -> 900
+                     *
+                     * 900 must be saved.
+                     */
 
                 }
+            );
 
 
-                /* =========================================
-                   INSTALLATION
-                ========================================== */
+            /* =================================================
+               INITIAL STATE
+            ================================================= */
 
-                if (
-                    !installationYear.value
-                ) {
-
-                    event.preventDefault();
-
-                    installationYear.focus();
-
-                    alert(
-                        'Please enter Installation Year.'
-                    );
-
-                    return;
-                }
+            updateAssetType();
 
 
-                /* =========================================
-                   FINAL SUBMIT
-                ========================================== */
+            /*
+             * Run once more after all event handlers are
+             * registered.
+             */
+            updateFloorService();
 
-                submitting =
-                    true;
-
-
-                /*
-                 * Only now disable button.
-                 */
-                saveBtn.disabled =
-                    true;
-
-
-                saveBtn.innerHTML =
-
-                    '<span class="spinner-border ' +
-                    'spinner-border-sm me-1">' +
-                    '</span>' +
-                    'Saving Asset...';
-
-                /*
-                 * IMPORTANT:
-                 *
-                 * Do NOT call calculateLoad() here.
-                 *
-                 * If user manually changed:
-                 *
-                 * 884 -> 900
-                 *
-                 * 900 must be saved.
-                 */
-
-            }
-        );
-
-
-        /* =================================================
-           INITIAL STATE
-        ================================================= */
-
-        updateAssetType();
-
-
-        /*
-         * Run once more after all event handlers are
-         * registered.
-         */
-        updateFloorService();
-
-    }
-);
-
+        }
+    );
 </script>

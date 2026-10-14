@@ -2355,6 +2355,18 @@ $type =
 <?php endif; ?>
 
 
+<!-- Edit asset without changing its Asset ID -->
+<div class="asset-delete-row mt-3 pt-3 border-top justify-content-between">
+    <a
+        href="add-lift-escalator.php?edit_asset=<?= $assetId ?>"
+        class="btn btn-sm btn-outline-primary"
+        onclick="event.stopPropagation();"
+    >
+        <i class="bi bi-pencil-square me-1"></i>
+        Edit Asset
+    </a>
+</div>
+
 <!-- =====================================================
      PERMANENT DELETE
 ===================================================== -->
