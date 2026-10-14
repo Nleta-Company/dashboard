@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  php:
+    image: php:8.1-apache
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www/html
+    environment:
+      DB_HOST: db
+      DB_USER: nleta
+      DB_PASS: nleta_pass
+      DB_NAME: maintenance_system
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: maintenance_system
+      MYSQL_USER: nleta
+      MYSQL_PASSWORD: nleta_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./database.sql:/docker-entrypoint-initdb.d/database.sql
+      - db_data:/var/lib/mysql
+
+volumes:
+  db_data:

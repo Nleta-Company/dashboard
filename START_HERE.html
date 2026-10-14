@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NLETA System - Quick Start</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.container {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  max-width: 800px;
+  width: 100%;
+  padding: 40px;
+}
+.logo {
+  text-align: center;
+  margin-bottom: 30px;
+}
+.logo h1 {
+  color: #333;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+.logo p {
+  color: #666;
+  font-size: 16px;
+}
+.steps {
+  margin: 30px 0;
+}
+.step {
+  background: #f8f9fa;
+  border-left: 4px solid #667eea;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+.step h3 {
+  color: #333;
+  margin-bottom: 10px;
+  font-size: 20px;
+}
+.step p {
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+.btn {
+  display: inline-block;
+  padding: 12px 30px;
+  background: #667eea;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s;
+  margin-right: 10px;
+  margin-top: 10px;
+}
+.btn:hover {
+  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+.btn-success {
+  background: #28a745;
+}
+.btn-success:hover {
+  background: #218838;
+}
+.btn-info {
+  background: #17a2b8;
+}
+.btn-info:hover {
+  background: #138496;
+}
+.alert {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  color: #856404;
+}
+.alert strong {
+  display: block;
+  margin-bottom: 5px;
+}
+.checklist {
+  background: #e7f3ff;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+.checklist h4 {
+  color: #333;
+  margin-bottom: 15px;
+}
+.checklist label {
+  display: block;
+  padding: 8px 0;
+  color: #555;
+  cursor: pointer;
+}
+.checklist input[type="checkbox"] {
+  margin-right: 10px;
+  transform: scale(1.2);
+}
+.footer {
+  text-align: center;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+  color: #666;
+  font-size: 14px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="logo">
+    <h1>🏢 NLETA Maintenance System</h1>
+    <p>National Lift Escalator Testing Agency</p>
+  </div>
+
+  <div class="alert">
+    <strong>⚠️ Before You Start:</strong>
+    Make sure XAMPP/WAMP is installed and Apache + MySQL services are running!
+  </div>
+
+  <div class="steps">
+    
+    <div class="step">
+      <h3>📋 Step 1: Read Documentation</h3>
+      <p>Understand the system before setup.</p>
+      <a href="SETUP_GUIDE.md" class="btn btn-info" target="_blank">📖 Open Setup Guide</a>
+      <a href="README.md" class="btn btn-info" target="_blank">📄 Open README</a>
+    </div>
+
+    <div class="step">
+      <h3>🚀 Step 2: Run Setup (First Time Only)</h3>
+      <p>This will create the database, tables, and admin user. Run this ONCE.</p>
+      <a href="http://localhost/dashboard_original/setup.php" class="btn btn-success" target="_blank">
+        ⚙️ Run Setup Wizard
+      </a>
+      <p style="margin-top: 10px; font-size: 13px; color: #dc3545;">
+        <strong>Important:</strong> Delete setup.php after successful setup!
+      </p>
+    </div>
+
+    <div class="step">
+      <h3>🔐 Step 3: Login to System</h3>
+      <p>After setup, login with your admin credentials.</p>
+      <a href="http://localhost/dashboard_original/login.php" class="btn" target="_blank">
+        🔑 Open Login Page
+      </a>
+    </div>
+
+    <div class="step">
+      <h3>🎯 Step 4: Access Dashboards</h3>
+      <p>Direct links to different user panels:</p>
+      <a href="http://localhost/dashboard_original/admin/dashboard.php" class="btn" target="_blank">
+        👨‍💼 Admin Dashboard
+      </a>
+      <a href="http://localhost/dashboard_original/owner/dashboard.php" class="btn" target="_blank">
+        🏠 Owner Dashboard
+      </a>
+      <a href="http://localhost/dashboard_original/maintenance/dashboard.php" class="btn" target="_blank">
+        🔧 Technician Dashboard
+      </a>
+    </div>
+
+  </div>
+
+  <div class="checklist">
+    <h4>✅ Setup Checklist</h4>
+    <label><input type="checkbox"> XAMPP/WAMP installed</label>
+    <label><input type="checkbox"> Apache and MySQL services running</label>
+    <label><input type="checkbox"> Project copied to htdocs/www folder</label>
+    <label><input type="checkbox"> Setup wizard completed successfully</label>
+    <label><input type="checkbox"> Admin login working</label>
+    <label><input type="checkbox"> setup.php file deleted</label>
+  </div>
+
+  <div class="footer">
+    <p><strong>Default Admin Credentials (if using setup.php):</strong></p>
+    <p>Email: admin@nleta.org | Password: (what you set during setup)</p>
+    <p style="margin-top: 10px;">© 2025 NLETA. All Rights Reserved.</p>
+  </div>
+
+</div>
+
+</body>
+</html>

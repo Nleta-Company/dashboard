@@ -1,0 +1,11 @@
+Options -Indexes
+php_flag display_errors off
+php_value upload_max_filesize 50M
+php_value post_max_size 20M
+php_value max_execution_time 60
+
+# Protect sensitive files
+<FilesMatch "\.(env|sql|md|log)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
